@@ -35,10 +35,44 @@ namespace l1thgcfirmware {
                   wroz2_(0),
                   layerbits_(0),
                   sat_tc_(false),
-                  shapeq_(1)
+                  shapeq_(1),
+                  Sigma_E_Quotient_(0),
+                  Sigma_E_Fraction_(0),
+                  Mean_z_Quotient_(0),
+                  Mean_z_Fraction_(0),
+                  Mean_phi_Quotient_(0),
+                  Mean_phi_Fraction_(0),
+                  Mean_eta_Quotient_(0),
+                  Mean_eta_Fraction_(0),
+                  Mean_roz_Quotient_(0),
+                  Mean_roz_Fraction_(0),
+                  Sigma_z_Quotient_(0),
+                  Sigma_z_Fraction_(0),
+                  Sigma_phi_Quotient_(0),
+                  Sigma_phi_Fraction_(0),
+                  Sigma_eta_Quotient_(0),
+                  Sigma_eta_Fraction_(0),
+                  Sigma_roz_Quotient_(0),
+                  Sigma_roz_Fraction_(0),
+                  FirstLayer_(0),
+                  LastLayer_(0),
+                  ShowerLen_(0),
+                  CoreShowerLen_(0),
+                  E_EM_over_E_Quotient_(0),
+                  E_EM_over_E_Fraction_(0),
+                  E_EM_core_over_E_EM_Quotient_(0),
+                  E_EM_core_over_E_EM_Fraction_(0),
+                  E_H_early_over_E_Quotient_(0),
+                  E_H_early_over_E_Fraction_(0)
                   {}
 
     ~HGCalCluster(){}
+
+    double Sigma_Energy(unsigned int N_TC_W, unsigned long int Sum_W2, unsigned int Sum_W);
+    double Mean_coordinate(unsigned int Sum_Wc, unsigned int Sum_W);
+    double Sigma_Coordinate(unsigned int Sum_W, unsigned long int Sum_Wc2, unsigned int Sum_Wc);
+    double Energy_ratio(unsigned int E_N, unsigned int E_D);
+    std::vector<int> ShowerLengthProperties(unsigned long int layerBits);
 
     // Setters
     void setClock( const unsigned int clock ) { clock_ = clock; }
@@ -91,6 +125,35 @@ namespace l1thgcfirmware {
     bool sat_tc() const { return sat_tc_; }
     unsigned int shapeq() const { return shapeq_; }
 
+    unsigned long int Sigma_E_Quotient(); 
+    unsigned long int Sigma_E_Fraction();
+    unsigned long int Mean_z_Quotient();
+    unsigned long int Mean_z_Fraction();
+    unsigned long int Mean_phi_Quotient();
+    unsigned long int Mean_phi_Fraction();
+    unsigned long int Mean_eta_Quotient();
+    unsigned long int Mean_eta_Fraction();
+    unsigned long int Mean_roz_Quotient();
+    unsigned long int Mean_roz_Fraction();
+    unsigned long int Sigma_z_Quotient();
+    unsigned long int Sigma_z_Fraction();
+    unsigned long int Sigma_phi_Quotient();
+    unsigned long int Sigma_phi_Fraction();
+    unsigned long int Sigma_eta_Quotient();
+    unsigned long int Sigma_eta_Fraction();
+    unsigned long int Sigma_roz_Quotient();
+    unsigned long int Sigma_roz_Fraction();
+    unsigned long int FirstLayer();
+    unsigned long int LastLayer();
+    unsigned long int ShowerLen();
+    unsigned long int CoreShowerLen();
+    unsigned long int E_EM_over_E_Quotient();
+    unsigned long int E_EM_over_E_Fraction();
+    unsigned long int E_EM_core_over_E_EM_Quotient();
+    unsigned long int E_EM_core_over_E_EM_Fraction();
+    unsigned long int E_H_early_over_E_Quotient();
+    unsigned long int E_H_early_over_E_Fraction();
+
     // Operators
     const HGCalCluster& operator+=(const HGCalCluster& hc);
 
@@ -120,7 +183,36 @@ namespace l1thgcfirmware {
     unsigned long int layerbits_;
     bool sat_tc_;
     unsigned int shapeq_;
+    unsigned long int Sigma_E_Quotient_;
+    unsigned long int Sigma_E_Fraction_;
+    unsigned long int Mean_z_Quotient_;
+    unsigned long int Mean_z_Fraction_;
+    unsigned long int Mean_phi_Quotient_;
+    unsigned long int Mean_phi_Fraction_;
+    unsigned long int Mean_eta_Quotient_;
+    unsigned long int Mean_eta_Fraction_;
+    unsigned long int Mean_roz_Quotient_;
+    unsigned long int Mean_roz_Fraction_;
+    unsigned long int Sigma_z_Quotient_;
+    unsigned long int Sigma_z_Fraction_;
+    unsigned long int Sigma_phi_Quotient_;
+    unsigned long int Sigma_phi_Fraction_;
+    unsigned long int Sigma_eta_Quotient_;
+    unsigned long int Sigma_eta_Fraction_;
+    unsigned long int Sigma_roz_Quotient_;
+    unsigned long int Sigma_roz_Fraction_;
+    unsigned long int FirstLayer_;
+    unsigned long int LastLayer_;
+    unsigned long int ShowerLen_;
+    unsigned long int CoreShowerLen_;
+    unsigned long int E_EM_over_E_Quotient_;
+    unsigned long int E_EM_over_E_Fraction_;
+    unsigned long int E_EM_core_over_E_EM_Quotient_;
+    unsigned long int E_EM_core_over_E_EM_Fraction_;
+    unsigned long int E_H_early_over_E_Quotient_;
+    unsigned long int E_H_early_over_E_Fraction_;
 
+ 
   };
 
   typedef std::vector<HGCalCluster> HGCalClusterSACollection;

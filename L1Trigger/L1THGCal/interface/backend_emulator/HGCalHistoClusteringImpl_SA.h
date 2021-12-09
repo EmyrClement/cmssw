@@ -51,6 +51,7 @@ private:
   // Cluster properties
   l1thgcfirmware::HGCalClusterSAPtrCollection triggerCellToCluster( l1thgcfirmware::HGCalTriggerCellSAPtrCollection& clusteredTriggerCells ) const;
   void clusterSum( l1thgcfirmware::HGCalClusterSAPtrCollection& protoClusters, l1thgcfirmware::CentroidHelperPtrCollection& readoutFlags, l1thgcfirmware::HGCalClusterSAPtrCollection& clusterAccumulation, l1thgcfirmware::HGCalClusterSAPtrCollection& clusterSums ) const;
+  void ClusterProperties(l1thgcfirmware::HGCalClusterSAPtrCollection& clusterSums) const;
 
   // Useful functions
   void initializeTriggerCellDistGrid( l1thgcfirmware::HGCalTriggerCellSAPtrCollections& grid, unsigned int nX, unsigned int nY ) const;
