@@ -630,20 +630,27 @@ void HGCalHistoClusteringImplSA::clusterSum( HGCalClusterSAPtrCollection& protoC
   // }
   // std::cout << nTCs << std::endl;
   // nTCs = 0;
-  // std::cout << "Cluster sums" << std::endl;
-  // for ( const auto& c : clusterSums ) {
-  //   std::cout << c->clock() << " " << c->index() << " " << c->n_tc() << " " << c->e() << " " << c->e_em() << " " << c->e_em_core() << " " << c->e_h_early() << std::endl;
-  //   nTCs += c->n_tc();
-  // }
+  //unsigned int ID = 0;
+  // Print the info as the Python emu format
+  //std::cout << "ID,event_ID,cluster_ID,N_TC,E,E_EM,E_EM_core,E_H_early,W,N_TC_W,W2,Wz,Weta,Wphi,Wroz,Wz2,Weta2,Wphi2,Wroz2,LayerBits,Sat_TC,ShapeQ,SortKey" << std::endl;
+  //for ( const auto& c : clusterSums ) {
+     //std::cout << ID << ",0," << c->index() << "," << c->n_tc() << "," << c->e() << "," << c->e_em() << "," << c->e_em_core() << "," << c->e_h_early() << "," << c->w() << "," << c->n_tc_w() << "," << c->w2() << "," << c->wz() << "," << c->weta() << "," << c->wphi() << "," << c->wroz() << "," << c->wz2() << "," << c->weta2() << "," << c->wphi2() << "," << c->wroz2() << "," << c->layerbits() << "," << c->sat_tc() << "," << c->shapeq() << ",0" << std::endl;
+     //ID++;
+     //nTCs += c->n_tc();
+  //}
   // std::cout << nTCs << std::endl;
+
+//ID,event_ID,cluster_ID,N_TC,E,E_EM,E_EM_core,E_H_early,W,N_TC_W,W2,Wz,Weta,Wphi,Wroz,Wz2,Weta2,Wphi2,Wroz2,LayerBits,Sat_TC,ShapeQ,SortKey
+//0,0,0,11,13100,13191,3510,0,13100,11,19983438,6512832,0,34928956,925678,3536339304,0,93143017996,70585632,8148,0,1,0
+
 }
 
 
 void HGCalHistoClusteringImplSA::ClusterProperties(  HGCalClusterSAPtrCollection& clusterSums ) const {
    unsigned int nTCs = 0;
+   std::cout << "Cluster Prop" << std::endl;
    for ( const auto& c : clusterSums ) {
-
-      std::cout << c->clock() << " " << c->index() << " " << c->n_tc() << " " << c->e() << " " << c->e_em() << " " << c->e_em_core() << " " << c->e_h_early() << " N "<< c->Sigma_E_Quotient()<< " " <<c->Sigma_E_Fraction() << " " << c->Mean_z_Quotient() << " " << c->Mean_z_Fraction() << " " << c->Mean_phi_Quotient() << " "<< c->Mean_phi_Fraction() << " " << c->Mean_eta_Quotient() << " " << c->Mean_eta_Fraction() << " " << c->Mean_roz_Quotient() << " " << c->Mean_roz_Fraction() <<  " "<< c->Sigma_z_Quotient() << " "<< c->Sigma_z_Fraction() << " "<< c->Sigma_phi_Quotient() << " " << c-> Sigma_phi_Fraction() << " " << c->Sigma_eta_Quotient() << " " << c->Sigma_eta_Fraction() << " " << c->Sigma_roz_Quotient() << " "<< c->Sigma_roz_Fraction() << " "<< c->FirstLayer() <<" "<< c->LastLayer() << " "<< c->ShowerLen() << " " << c->CoreShowerLen() << " "<< c->E_EM_over_E_Quotient() << " " << c->E_EM_over_E_Fraction() << " " << c->E_EM_core_over_E_EM_Quotient() << " "<< c->E_H_early_over_E_Quotient() << " " << c->E_H_early_over_E_Fraction() << std::endl;
+      std::cout << c->clock() << " " << c->index() << " " << c->n_tc() << " " << c->e() << " " << c->e_em() << " " << c->e_em_core() << " " << c->e_h_early() << " N "<< c->Sigma_E_Quotient()<< " " <<c->Sigma_E_Fraction() << " " << c->Mean_z_Quotient() << " " << c->Mean_z_Fraction() << " " << c->Mean_phi_Quotient() << " "<< c->Mean_phi_Fraction() << " " << c->Mean_eta_Quotient() << " " << c->Mean_eta_Fraction() << " " << c->Mean_roz_Quotient() << " " << c->Mean_roz_Fraction() <<  " "<< c->Sigma_z_Quotient() << " "<< c->Sigma_z_Fraction() << " "<< c->Sigma_phi_Quotient() << " " << c-> Sigma_phi_Fraction() << " " << c->Sigma_eta_Quotient() << " " << c->Sigma_eta_Fraction() << " " << c->Sigma_roz_Quotient() << " "<< c->Sigma_roz_Fraction() << " "<< c->FirstLayer() <<" "<< c->LastLayer() << " "<< c->ShowerLen() << " " << c->CoreShowerLen() << " "<< c->E_EM_over_E_Quotient() << " " << c->E_EM_over_E_Fraction() << " " << c->E_EM_core_over_E_EM_Quotient() << " "<< c->E_EM_core_over_E_EM_Fraction() << " " << c->E_H_early_over_E_Quotient() << " " << c->E_H_early_over_E_Fraction() << std::endl;
       nTCs += c->n_tc();
    }
    std::cout << nTCs << std::endl;

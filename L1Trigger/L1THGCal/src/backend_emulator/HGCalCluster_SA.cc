@@ -38,7 +38,7 @@ std::vector<int> HGCalCluster::ShowerLengthProperties(unsigned long int layerBit
 
   std::vector<int> layerBits_array;
   for (int idx = 0; idx<36; idx++) {
-    if ( (layerBits&(1L<<idx) ) >= 1L ) {
+    if ( (layerBits&(1L<<(35-idx)) ) >= 1L ) {
       if ( !firstLayerFound ) {
         firstLayer = idx+1;
         firstLayerFound=true;
@@ -62,118 +62,118 @@ std::vector<int> HGCalCluster::ShowerLengthProperties(unsigned long int layerBit
 }
 
 
-unsigned long int HGCalCluster::Sigma_E_Quotient()  { 
+unsigned long int HGCalCluster::Sigma_E_Fraction()  { 
   double Sigma_E_temp = Sigma_Energy( this->n_tc_w(), this->w2(), this->w() );
   double intpart;
   return modf(Sigma_E_temp,&intpart)*pow(2,1);
 }
 
 
-unsigned long int HGCalCluster::Sigma_E_Fraction()  { 
+unsigned long int HGCalCluster::Sigma_E_Quotient()  { 
   double Sigma_E_temp = Sigma_Energy( this->n_tc_w(), this->w2(), this->w() );
   double intpart;
   double frac =  modf(Sigma_E_temp,&intpart);
   return intpart;
 }
 
-unsigned long int HGCalCluster::Mean_z_Quotient()   { 
+unsigned long int HGCalCluster::Mean_z_Fraction()   { 
   double Mean_z_temp = Mean_coordinate(this->wz(), this->w());
   double intpart;
   return modf(Mean_z_temp,&intpart)*pow(2,2);
 }
 
-unsigned long int HGCalCluster::Mean_z_Fraction()  { 
+unsigned long int HGCalCluster::Mean_z_Quotient()  { 
   double Mean_z_temp = Mean_coordinate(this->wz(), this->w());
   double intpart;
   double frac =  modf(Mean_z_temp,&intpart)*pow(2,2);
   return intpart;
 }
     
-unsigned long int HGCalCluster::Mean_phi_Quotient()  { 
+unsigned long int HGCalCluster::Mean_phi_Fraction()  { 
   double Mean_phi_temp = Mean_coordinate(this->wphi(), this->w());
   double intpart;
   return  modf(Mean_phi_temp,&intpart)*pow(2,2);
 }
 
-unsigned long int HGCalCluster::Mean_phi_Fraction()  { 
+unsigned long int HGCalCluster::Mean_phi_Quotient()  { 
   double Mean_phi_temp = Mean_coordinate(this->wphi(), this->w());
   double intpart;
   double frac =  modf(Mean_phi_temp,&intpart)*pow(2,2);
   return intpart;
 }
     
-unsigned long int HGCalCluster::Mean_eta_Quotient() { 
+unsigned long int HGCalCluster::Mean_eta_Fraction() { 
   double Mean_eta_temp = Mean_coordinate(this->weta(), this->w());
   double intpart;
   return  modf(Mean_eta_temp,&intpart)*pow(2,2);
 }
    
-unsigned long int HGCalCluster::Mean_eta_Fraction()  { 
+unsigned long int HGCalCluster::Mean_eta_Quotient()  { 
   double Mean_eta_temp = Mean_coordinate(this->weta(), this->w());
   double intpart;
   double frac =  modf(Mean_eta_temp,&intpart)*pow(2,2);
   return intpart;
 }
     
-unsigned long int HGCalCluster::Mean_roz_Quotient() { 
+unsigned long int HGCalCluster::Mean_roz_Fraction() { 
   double Mean_roz_temp = Mean_coordinate(this->wroz(), this->w());
   double intpart;
   return  modf(Mean_roz_temp,&intpart)*pow(2,2);
 }
 
-unsigned long int HGCalCluster::Mean_roz_Fraction()  { 
-  double Mean_roz_temp = Mean_coordinate(this->weta(), this->w());
+unsigned long int HGCalCluster::Mean_roz_Quotient()  { 
+  double Mean_roz_temp = Mean_coordinate(this->wroz(), this->w());
   double intpart;
   double frac =  modf(Mean_roz_temp,&intpart)*pow(2,2);
   return intpart;
 }
 
-unsigned long int HGCalCluster::Sigma_z_Quotient()  { 
+unsigned long int HGCalCluster::Sigma_z_Fraction()  { 
   double Sigma_z_temp = Sigma_Coordinate(this->w(), this->wz2(), this->wz());
   double intpart;  
   return modf(Sigma_z_temp,&intpart)*pow(2,1);
 }
 
-unsigned long int HGCalCluster::Sigma_z_Fraction()  { 
+unsigned long int HGCalCluster::Sigma_z_Quotient()  { 
   double Sigma_z_temp = Sigma_Coordinate(this->w(), this->wz2(), this->wz());
   double intpart;
   double frac = modf(Sigma_z_temp,&intpart)*pow(2,1);
   return intpart;
 }
 
-unsigned long int HGCalCluster::Sigma_phi_Quotient()  { 
+unsigned long int HGCalCluster::Sigma_phi_Fraction()  { 
   double Sigma_phi_temp = Sigma_Coordinate(this->w(), this->wphi2(), this->wphi());
   double intpart;
   return modf(Sigma_phi_temp,&intpart)*pow(2,1);
 }
 
-unsigned long int HGCalCluster::Sigma_phi_Fraction()  { 
+unsigned long int HGCalCluster::Sigma_phi_Quotient()  { 
   double Sigma_phi_temp = Sigma_Coordinate(this->w(), this->wphi2(), this->wphi());
   double intpart;
   double frac = modf(Sigma_phi_temp,&intpart)*pow(2,1);
   return intpart;
 }
 
-unsigned long int HGCalCluster::Sigma_eta_Quotient()  { 
+unsigned long int HGCalCluster::Sigma_eta_Fraction()  { 
   double Sigma_eta_temp = Sigma_Coordinate(this->w(), this->weta2(), this->weta());
   double intpart;
   return modf(Sigma_eta_temp,&intpart)*pow(2,1);
 }
 
-unsigned long int HGCalCluster::Sigma_eta_Fraction()  { 
+unsigned long int HGCalCluster::Sigma_eta_Quotient()  { 
   double Sigma_eta_temp = Sigma_Coordinate(this->w(), this->weta2(), this->weta());
   double intpart;
   double frac = modf(Sigma_eta_temp,&intpart)*pow(2,1);
   return intpart;
 }
 
-unsigned long int HGCalCluster::Sigma_roz_Quotient()  { 
+unsigned long int HGCalCluster::Sigma_roz_Fraction()  { 
   double Sigma_roz_temp = Sigma_Coordinate(this->w(), this->wroz2(), this->wroz());
   double intpart;
   return modf(Sigma_roz_temp,&intpart)*pow(2,1);
 }
 
-unsigned long int HGCalCluster::Sigma_roz_Fraction()  { 
+unsigned long int HGCalCluster::Sigma_roz_Quotient()  { 
   double Sigma_roz_temp = Sigma_Coordinate(this->w(), this->wroz2(), this->wroz());
   double intpart;
   double frac = modf(Sigma_roz_temp,&intpart)*pow(2,1);
@@ -200,39 +200,39 @@ unsigned long int HGCalCluster::CoreShowerLen()  {
   return layeroutput[3];
 }
 
-unsigned long int HGCalCluster::E_EM_over_E_Quotient()  { 
+unsigned long int HGCalCluster::E_EM_over_E_Fraction()  { 
   double E_EM_over_E_temp = Energy_ratio( this->e_em() , this->e() );
   double intpart;
   return modf(E_EM_over_E_temp,&intpart)*pow(2,8);
 }
 
-unsigned long int HGCalCluster::E_EM_over_E_Fraction()  { 
+unsigned long int HGCalCluster::E_EM_over_E_Quotient()  { 
   double E_EM_over_E_temp = Energy_ratio( this->e_em() , this->e() );
   double intpart;
   double frac = modf(E_EM_over_E_temp,&intpart)*pow(2,8);
   return intpart;
 }
 
-unsigned long int HGCalCluster::E_EM_core_over_E_EM_Quotient()  { 
+unsigned long int HGCalCluster::E_EM_core_over_E_EM_Fraction()  { 
   double E_EM_core_over_E_EM_temp = Energy_ratio( this->e_em_core() , this->e() );
   double intpart;
   return modf(E_EM_core_over_E_EM_temp,&intpart)*pow(2,8);
 }
 
-unsigned long int HGCalCluster::E_EM_core_over_E_EM_Fraction()  { 
+unsigned long int HGCalCluster::E_EM_core_over_E_EM_Quotient()  { 
   double E_EM_core_over_E_EM_temp = Energy_ratio( this->e_em_core() , this->e() );
   double intpart;
   double frac =  modf(E_EM_core_over_E_EM_temp,&intpart)*pow(2,8);
   return intpart;
 }
 
-unsigned long int HGCalCluster::E_H_early_over_E_Quotient()  { 
+unsigned long int HGCalCluster::E_H_early_over_E_Fraction()  { 
   double E_H_early_over_E_temp = Energy_ratio( this->e_h_early() , this->e() );
   double intpart;
   return  modf(E_H_early_over_E_temp,&intpart)*pow(2,8);
 }
 
-unsigned long int HGCalCluster::E_H_early_over_E_Fraction()  { 
+unsigned long int HGCalCluster::E_H_early_over_E_Quotient()  { 
   double E_H_early_over_E_temp = Energy_ratio( this->e_h_early() , this->e() );
   double intpart;
   double frac =  modf(E_H_early_over_E_temp,&intpart)*pow(2,8);
