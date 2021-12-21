@@ -51,7 +51,13 @@ private:
   // Cluster properties
   l1thgcfirmware::HGCalClusterSAPtrCollection triggerCellToCluster( l1thgcfirmware::HGCalTriggerCellSAPtrCollection& clusteredTriggerCells ) const;
   void clusterSum( l1thgcfirmware::HGCalClusterSAPtrCollection& protoClusters, l1thgcfirmware::CentroidHelperPtrCollection& readoutFlags, l1thgcfirmware::HGCalClusterSAPtrCollection& clusterAccumulation, l1thgcfirmware::HGCalClusterSAPtrCollection& clusterSums ) const;
-  void ClusterProperties(l1thgcfirmware::HGCalClusterSAPtrCollection& clusterSums) const;
+  std::pair< unsigned int, unsigned int > sigma_Energy(unsigned int N_TC_W, unsigned long int Sum_W2, unsigned int Sum_W) const;
+  std::pair< unsigned int, unsigned int > mean_coordinate(unsigned int Sum_Wc, unsigned int Sum_W) const;
+  std::pair< unsigned int, unsigned int > sigma_Coordinate(unsigned int Sum_W, unsigned long int Sum_Wc2, unsigned int Sum_Wc) const;
+  std::pair< unsigned int, unsigned int > energy_ratio(unsigned int E_N, unsigned int E_D) const;
+  std::vector<int> showerLengthProperties(unsigned long int layerBits) const;
+  void clusterProperties(l1thgcfirmware::HGCalClusterSAPtrCollection& clusterSums) const;
+
 
   // Useful functions
   void initializeTriggerCellDistGrid( l1thgcfirmware::HGCalTriggerCellSAPtrCollections& grid, unsigned int nX, unsigned int nY ) const;
