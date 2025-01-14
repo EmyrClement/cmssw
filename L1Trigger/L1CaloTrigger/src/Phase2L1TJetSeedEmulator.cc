@@ -18,26 +18,21 @@
 // constructors and destructor
 //
 Phase2L1TJetSeedEmulator::Phase2L1TJetSeedEmulator(bool debug, std::vector<double> etaBinning, unsigned int nBinsPhi, unsigned int jetIEtaSize, unsigned int jetIPhiSize, bool trimmedGrid, double seedPtThreshold, double ptlsb, double philsb, double etalsb, std::vector<double> etaRegionEdges, std::vector<double> phiRegionEdges ,unsigned int maxInputsPerRegion) 
-    : debug_(debug),
-      etaBinning_(etaBinning),
-      nBinsEta_(etaBinning_.size() - 1),
-      nBinsPhi_(nBinsPhi),
-      jetIEtaSize_(jetIEtaSize),
-      jetIPhiSize_(jetIPhiSize),
-      trimmedGrid_(trimmedGrid),
-      seedPtThreshold_(seedPtThreshold),
-      ptlsb_(ptlsb),
-      philsb_(philsb),
-      etalsb_(etalsb),
-      etaRegionEdges_(etaRegionEdges),
-      phiRegionEdges_(phiRegionEdges),
-      
-      maxInputsPerRegion_(maxInputsPerRegion) {
-  caloGrid_ =
-      std::make_unique<TH2F>("caloGrid", "Calorimeter grid", nBinsEta_, etaBinning_.data(), nBinsPhi_, phiRegionEdges_.front(), phiRegionEdges_.back());
-  caloGrid_->GetXaxis()->SetTitle("#eta");
-  caloGrid_->GetYaxis()->SetTitle("#phi");
-
+  : debug_(debug),
+    etaBinning_(etaBinning),
+    nBinsEta_(etaBinning_.size() - 1),
+    nBinsPhi_(nBinsPhi),
+    jetIEtaSize_(jetIEtaSize),
+    jetIPhiSize_(jetIPhiSize),
+    trimmedGrid_(trimmedGrid),
+    seedPtThreshold_(seedPtThreshold),
+    ptlsb_(ptlsb),
+    philsb_(philsb),
+    etalsb_(etalsb),
+    etaRegionEdges_(etaRegionEdges),
+    phiRegionEdges_(phiRegionEdges),
+    maxInputsPerRegion_(maxInputsPerRegion),
+    caloGrid_(etaBinning_.size() - 1, std::vector<float>(nBinsPhi, 0.0f)) {
 }
 
 bool Phase2L1TJetSeedEmulator::trimTower(const int etaIndex, const int phiIndex) const {
@@ -64,35 +59,32 @@ bool Phase2L1TJetSeedEmulator::trimTower(const int etaIndex, const int phiIndex)
 //
 
 float Phase2L1TJetSeedEmulator::getTowerEnergy(int iEta, int iPhi) const {
-  int nBinsEta = caloGrid_->GetNbinsX();
-  int nBinsPhi = caloGrid_->GetNbinsY();
-  while (iPhi < 1) {
+  int nBinsEta = caloGrid_.size();
+  int nBinsPhi = caloGrid_[0].size();
+  while (iPhi < 0) {
     iPhi += nBinsPhi;
   }
-  while (iPhi > nBinsPhi) {
+  while (iPhi >= nBinsPhi) {
     iPhi -= nBinsPhi;
   }
-  if (iEta < 1) {
+  if (iEta < 0 || iEta >= nBinsEta) {
     return 0;
   }
-  if (iEta > nBinsEta) {
-    return 0;
-  }
-  return caloGrid_->GetBinContent(iEta, iPhi);
+  return caloGrid_[iEta][iPhi];
 }
 
 l1t::PFCandidateCollection Phase2L1TJetSeedEmulator::findSeeds(float seedThreshold) const {
-  int nBinsX = caloGrid_->GetNbinsX();
-  int nBinsY = caloGrid_->GetNbinsY();
+  int nBinsX = caloGrid_.size();
+  int nBinsY = caloGrid_[0].size();
 
   l1t::PFCandidateCollection seeds;
 
   int etaHalfSize = (int)jetIEtaSize_ / 2;
   int phiHalfSize = (int)jetIPhiSize_ / 2;
 
-  for (int iPhi = 1; iPhi <= nBinsY; iPhi++) {
-      for (int iEta = 1; iEta <= nBinsX; iEta++) {
-      float centralPt = caloGrid_->GetBinContent(iEta, iPhi);
+  for (int iPhi = 0; iPhi < nBinsY; iPhi++) {
+    for (int iEta = 0; iEta < nBinsX; iEta++) {
+      float centralPt = caloGrid_[iEta][iPhi];
       if (centralPt < seedThreshold)
         continue;
 
@@ -127,10 +119,10 @@ l1t::PFCandidateCollection Phase2L1TJetSeedEmulator::findSeeds(float seedThresho
         reco::Candidate::PolarLorentzVector pfVector;
 
         const float etaLSB = 1.5 / 18;
-        double etaBinCentre = -3 + (iEta-1+0.5)*etaLSB;
+        double etaBinCentre = -3 + (iEta+0.5)*etaLSB;
 
         const float phiLSB = 2. * M_PI / 72;
-        double phiBinCentre = -M_PI + ( iPhi-1+0.5 ) * phiLSB;
+        double phiBinCentre = -M_PI + ( iPhi+0.5 ) * phiLSB;
 
         pfVector.SetPt(centralPt);
         pfVector.SetPhi(phiBinCentre);
@@ -291,10 +283,7 @@ std::pair<double, double> Phase2L1TJetSeedEmulator::regionEtaPhiUpEdges(const un
   return std::pair<double, double>{phiRegionEdges_.at(phiRegion + 1), etaRegionEdges_.at(etaRegion + 1)};
 }
 
-std::pair<unsigned, unsigned> Phase2L1TJetSeedEmulator::getCandidateBin(const float eta,
-                                                                     const float phi,
-                                                                     const unsigned int regionIndex) const {
-
+std::pair<unsigned, unsigned> Phase2L1TJetSeedEmulator::getCandidateBin(const float eta, const float phi, const unsigned int regionIndex) const {
   l1ct::glbeta_t glbEta = l1ct::Scales::makeGlbEta( eta );
   l1ct::glbphi_t glbPhi = l1ct::Scales::makeGlbPhi( phi );
 
@@ -313,7 +302,7 @@ std::pair<unsigned, unsigned> Phase2L1TJetSeedEmulator::getCandidateBin(const fl
 
   std::pair<unsigned, unsigned> binOffsets = regionEtaPhiBinOffset(regionIndex);
 
-  return std::pair<unsigned, unsigned>{phiBin + binOffsets.first, etaBin + binOffsets.second };
+  return std::pair<unsigned, unsigned>{phiBin + binOffsets.first - 1, etaBin + binOffsets.second - 1 };
 }
 
 unsigned int Phase2L1TJetSeedEmulator::getRegionIndex(const unsigned int phiRegion, const unsigned int etaRegion) const {

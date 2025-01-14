@@ -30,8 +30,6 @@
 #include "DataFormats/L1TParticleFlow/interface/gt_datatypes.h"
 #include "L1Trigger/Phase2L1ParticleFlow/interface/common/bitonic_hybrid_sort_ref.h"
 
-#include "TH2F.h"
-
 #include <vector>
 #include <memory>
 #include <cmath>
@@ -39,7 +37,7 @@
 
 class Phase2L1TJetSeedEmulator {
 public:
-  Phase2L1TJetSeedEmulator(bool debug, std::vector<double> etaBinning, unsigned int nBinsPhi, unsigned int jetIEtaSize, unsigned int jetIPhiSize, bool trimmedGrid, double seedPtThreshold, double ptlsb, double philsb, double etalsb, std::vector<double> etaRegionEdges, std::vector<double> phiRegionEdges ,unsigned int maxInputsPerRegion);
+  Phase2L1TJetSeedEmulator(bool debug, std::vector<double> etaBinning, unsigned int nBinsPhi, unsigned int jetIEtaSize, unsigned int jetIPhiSize, bool trimmedGrid, double seedPtThreshold, double ptlsb, double philsb, double etalsb, std::vector<double> etaRegionEdges, std::vector<double> phiRegionEdges ,unsigned int maxInputsPerRegion );
 
   template <class Handle>
   l1t::PFCandidateCollection emulateEvent( Handle triggerPrimitives );
@@ -70,7 +68,7 @@ public:
   void hybrid_bitonic_sort_and_crop_ref(unsigned int nIn, unsigned int nOut, const std::vector<T>& in, std::vector<T>& out);
 
   template <class Container>
-  void fillCaloGrid(TH2F& caloGrid, const Container& triggerPrimitives, unsigned int regionIndex);
+  void fillCaloGrid(std::vector<std::vector<float>>& caloGrid, const Container& triggerPrimitives, unsigned int regionIndex);
 
   unsigned int getRegionIndex(unsigned int phiRegion, unsigned int etaRegion) const;
 
@@ -79,7 +77,6 @@ public:
 
 private:
   bool debug_;
-  std::unique_ptr<TH2F> caloGrid_;
 
   std::vector<double> etaBinning_;
   size_t nBinsEta_;
@@ -94,6 +91,8 @@ private:
   std::vector<double> etaRegionEdges_;
   std::vector<double> phiRegionEdges_;
   unsigned int maxInputsPerRegion_;
+
+  std::vector<std::vector<float>> caloGrid_;
 };
 
 // Template implementations
@@ -103,22 +102,12 @@ l1t::PFCandidateCollection Phase2L1TJetSeedEmulator::emulateEvent( Handle trigge
   std::vector<std::vector<reco::CandidatePtr>> inputsInRegions = prepareInputsIntoRegions<Handle>(triggerPrimitives);
 
   // histogramming the data
-  caloGrid_->Reset();
-  for (unsigned int iInputRegion = 0; iInputRegion < inputsInRegions.size(); ++iInputRegion) {
-    fillCaloGrid<>(*(caloGrid_), inputsInRegions[iInputRegion], iInputRegion);
+  for (auto& row : caloGrid_) {
+    std::fill(row.begin(), row.end(), 0.0f);
   }
-
-  // int nBinsX = caloGrid_->GetNbinsX();
-  // int nBinsY = caloGrid_->GetNbinsY();
-  // for (int iPhi = 1; iPhi <= nBinsY; iPhi++)
-  // {
-  //   std::cout << "iPhi " << iPhi - 1 << " " << caloGrid_->GetYaxis()->GetBinCenter(iPhi) << " " << l1gt::phi_t(caloGrid_->GetYaxis()->GetBinCenter(iPhi) / l1gt::Scales::ETAPHI_LSB ) << ": ";
-  //   for (int iEta = 1; iEta <= nBinsX; iEta++)
-  //   {
-  //     std::cout <<caloGrid_->GetBinContent(iEta, iPhi) << " ";
-  //   }
-  //   std::cout << std::endl;
-  // }
+  for (unsigned int iInputRegion = 0; iInputRegion < inputsInRegions.size(); ++iInputRegion) {
+    fillCaloGrid<>(caloGrid_, inputsInRegions[iInputRegion], iInputRegion);
+  }
 
   // find the seeds
   const auto& seedsVector = findSeeds(seedPtThreshold_);  // seedPtThreshold = 5
@@ -138,11 +127,10 @@ void Phase2L1TJetSeedEmulator::swap(T& a, T& b) {
 }
 
 template <class Container>
-void Phase2L1TJetSeedEmulator::fillCaloGrid(TH2F& caloGrid, const Container& triggerPrimitives, unsigned int regionIndex) {
+void Phase2L1TJetSeedEmulator::fillCaloGrid(std::vector<std::vector<float>>& caloGrid, const Container& triggerPrimitives, unsigned int regionIndex) {
   for (const auto& primitive : triggerPrimitives) {
     auto binEtaPhi = getCandidateBin(primitive->eta(), primitive->phi(), regionIndex);
-    unsigned int globalBin = caloGrid.GetBin(binEtaPhi.second, binEtaPhi.first);
-    caloGrid.AddBinContent(globalBin, float(l1ct::pt_t(primitive->pt())));
+    caloGrid[binEtaPhi.second][binEtaPhi.first] += float(l1ct::pt_t(primitive->pt()));
   }
 }
 
