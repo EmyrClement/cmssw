@@ -1,11 +1,11 @@
-#ifndef L1Trigger_L1CaloTrigger_Phase1L1TJetSeedEmulator_h
-#define L1Trigger_L1CaloTrigger_Phase1L1TJetSeedEmulator_h
+#ifndef L1Trigger_L1CaloTrigger_Phase2L1TJetSeedEmulator_h
+#define L1Trigger_L1CaloTrigger_Phase2L1TJetSeedEmulator_h
 // -*- C++ -*-
 //
 // Package:     L1Trigger/L1CaloTrigger
-// Class  :     Phase1L1TJetSeedEmulator
+// Class  :     Phase2L1TJetSeedEmulator
 //
-/**\class Phase1L1TJetSeedEmulator Phase1L1TJetSeedEmulator.h "Phase1L1TJetSeedEmulator.h"
+/**\class Phase2L1TJetSeedEmulator Phase2L1TJetSeedEmulator.h "Phase2L1TJetSeedEmulator.h"
 
  Description: HistoSeededCone Seed Finding
 
@@ -37,9 +37,12 @@
 #include <cmath>
 #include <algorithm>
 
-class Phase1L1TJetSeedEmulator {
+class Phase2L1TJetSeedEmulator {
 public:
-  Phase1L1TJetSeedEmulator(bool debug, std::unique_ptr<TH2F> caloGrid, std::vector<double> etaBinning, unsigned int nBinsPhi, unsigned int jetIEtaSize, unsigned int jetIPhiSize, bool trimmedGrid, double seedPtThreshold, double ptlsb, double philsb, double etalsb, std::vector<double> etaRegionEdges, std::vector<double> phiRegionEdges ,unsigned int maxInputsPerRegion);
+  Phase2L1TJetSeedEmulator(bool debug, std::vector<double> etaBinning, unsigned int nBinsPhi, unsigned int jetIEtaSize, unsigned int jetIPhiSize, bool trimmedGrid, double seedPtThreshold, double ptlsb, double philsb, double etalsb, std::vector<double> etaRegionEdges, std::vector<double> phiRegionEdges ,unsigned int maxInputsPerRegion);
+
+  template <class Handle>
+  l1t::PFCandidateCollection emulateEvent( Handle triggerPrimitives );
 
   l1t::PFCandidateCollection findSeeds(float seedThreshold) const;
   float getTowerEnergy(int iEta, int iPhi) const;
@@ -94,15 +97,48 @@ private:
 };
 
 // Template implementations
+template <class Handle>
+l1t::PFCandidateCollection Phase2L1TJetSeedEmulator::emulateEvent( Handle triggerPrimitives  ) {
+  // sort inputs into PF regions
+  std::vector<std::vector<reco::CandidatePtr>> inputsInRegions = prepareInputsIntoRegions<Handle>(triggerPrimitives);
+
+  // histogramming the data
+  caloGrid_->Reset();
+  for (unsigned int iInputRegion = 0; iInputRegion < inputsInRegions.size(); ++iInputRegion) {
+    fillCaloGrid<>(*(caloGrid_), inputsInRegions[iInputRegion], iInputRegion);
+  }
+
+  // int nBinsX = caloGrid_->GetNbinsX();
+  // int nBinsY = caloGrid_->GetNbinsY();
+  // for (int iPhi = 1; iPhi <= nBinsY; iPhi++)
+  // {
+  //   std::cout << "iPhi " << iPhi - 1 << " " << caloGrid_->GetYaxis()->GetBinCenter(iPhi) << " " << l1gt::phi_t(caloGrid_->GetYaxis()->GetBinCenter(iPhi) / l1gt::Scales::ETAPHI_LSB ) << ": ";
+  //   for (int iEta = 1; iEta <= nBinsX; iEta++)
+  //   {
+  //     std::cout <<caloGrid_->GetBinContent(iEta, iPhi) << " ";
+  //   }
+  //   std::cout << std::endl;
+  // }
+
+  // find the seeds
+  const auto& seedsVector = findSeeds(seedPtThreshold_);  // seedPtThreshold = 5
+
+  // sort by pt
+  l1t::PFCandidateCollection sortedSeeds;
+  sortSeeds( seedsVector, sortedSeeds );
+  return sortedSeeds;
+}
+
+
 template <typename T>
-void Phase1L1TJetSeedEmulator::swap(T& a, T& b) {
+void Phase2L1TJetSeedEmulator::swap(T& a, T& b) {
   T temp = a;
   a = b;
   b = temp;
 }
 
 template <class Container>
-void Phase1L1TJetSeedEmulator::fillCaloGrid(TH2F& caloGrid, const Container& triggerPrimitives, unsigned int regionIndex) {
+void Phase2L1TJetSeedEmulator::fillCaloGrid(TH2F& caloGrid, const Container& triggerPrimitives, unsigned int regionIndex) {
   for (const auto& primitive : triggerPrimitives) {
     auto binEtaPhi = getCandidateBin(primitive->eta(), primitive->phi(), regionIndex);
     unsigned int globalBin = caloGrid.GetBin(binEtaPhi.second, binEtaPhi.first);
@@ -111,7 +147,7 @@ void Phase1L1TJetSeedEmulator::fillCaloGrid(TH2F& caloGrid, const Container& tri
 }
 
 template <typename T>
-void Phase1L1TJetSeedEmulator::compAndSwap(std::vector<T>& a, unsigned int i, unsigned int j, bool dir) {
+void Phase2L1TJetSeedEmulator::compAndSwap(std::vector<T>& a, unsigned int i, unsigned int j, bool dir) {
   if (i >= a.size() || j >= a.size() || i == j) return;
 
   if (dir) {
@@ -122,7 +158,7 @@ void Phase1L1TJetSeedEmulator::compAndSwap(std::vector<T>& a, unsigned int i, un
 }
 
 template <typename T>
-void Phase1L1TJetSeedEmulator::hybridBitonicMergeRef(std::vector<T>& a, int N, int low, bool dir) {
+void Phase2L1TJetSeedEmulator::hybridBitonicMergeRef(std::vector<T>& a, int N, int low, bool dir) {
   int k = hybridBitonicSortUtils::PowerOf2LessThan(N);
   int k2 = N - k;
 
@@ -138,7 +174,7 @@ void Phase1L1TJetSeedEmulator::hybridBitonicMergeRef(std::vector<T>& a, int N, i
 }
 
 template <typename T>
-void Phase1L1TJetSeedEmulator::hybridBitonicSortRef(std::vector<T>& a, int N, int low, bool dir) {
+void Phase2L1TJetSeedEmulator::hybridBitonicSortRef(std::vector<T>& a, int N, int low, bool dir) {
   if (N > 1) {
     int lowerSize = N / 2;
     int upperSize = N - lowerSize;
@@ -149,7 +185,7 @@ void Phase1L1TJetSeedEmulator::hybridBitonicSortRef(std::vector<T>& a, int N, in
 }
 
 template <typename T>
-void Phase1L1TJetSeedEmulator::hybrid_bitonic_sort_and_crop_ref(unsigned int nIn, unsigned int nOut, const std::vector<T>& in, std::vector<T>& out) {
+void Phase2L1TJetSeedEmulator::hybrid_bitonic_sort_and_crop_ref(unsigned int nIn, unsigned int nOut, const std::vector<T>& in, std::vector<T>& out) {
   std::vector<T> work = in;
   hybridBitonicSortRef(work, nIn, 0, false);
 
@@ -162,23 +198,41 @@ void Phase1L1TJetSeedEmulator::hybrid_bitonic_sort_and_crop_ref(unsigned int nIn
 
 
 template <class Handle>
-std::vector<std::vector<edm::Ptr<reco::Candidate>>> Phase1L1TJetSeedEmulator::prepareInputsIntoRegions(const Handle& triggerPrimitives) {
-  std::vector<std::vector<edm::Ptr<reco::Candidate>>> inputsInRegions(etaRegionEdges_.size() * (phiRegionEdges_.size() - 1));
+std::vector<std::vector<edm::Ptr<reco::Candidate>>> Phase2L1TJetSeedEmulator::prepareInputsIntoRegions(const Handle& triggerPrimitives) {
+  std::vector<std::vector<reco::CandidatePtr>> inputsInRegions{etaRegionEdges_.size() * (phiRegionEdges_.size() - 1)};
 
   for (unsigned int i = 0; i < triggerPrimitives->size(); ++i) {
-    edm::Ptr<reco::Candidate> tp(triggerPrimitives, i);
+    reco::CandidatePtr tp(triggerPrimitives, i);
 
-    if (tp->phi() < phiRegionEdges_.front() || tp->phi() >= phiRegionEdges_.back() ||
-        tp->eta() < etaRegionEdges_.front() || tp->eta() >= etaRegionEdges_.back()) {
+    if (
+      tp->phi() < phiRegionEdges_.front() || tp->phi() >= phiRegionEdges_.back() ||
+        tp->eta() < etaRegionEdges_.front() || tp->eta() >= etaRegionEdges_.back())
       continue;
+
+    // Which phi region does this tp belong to
+    auto it_phi = phiRegionEdges_.begin();
+    auto tp_phi = tp->phi();
+
+    it_phi = std::upper_bound(phiRegionEdges_.begin(), phiRegionEdges_.end(), tp_phi) - 1;
+    if ( l1ct::Scales::makeGlbPhi( *(it_phi+1) ) == l1ct::Scales::makeGlbPhi( tp_phi ) ) {
+      it_phi += 1;
+    }
+    // Which eta region does this tp belong to
+    auto it_eta = etaRegionEdges_.begin();
+    it_eta = std::upper_bound(etaRegionEdges_.begin(), etaRegionEdges_.end(), tp->eta()) - 1;
+    if ( l1ct::Scales::makeGlbEta( *(it_eta+1) ) == l1ct::Scales::makeGlbEta( tp->eta() ) ) {
+      it_eta += 1;
     }
 
-    auto phiRegion = std::upper_bound(phiRegionEdges_.begin(), phiRegionEdges_.end(), tp->phi()) - phiRegionEdges_.begin() - 1;
-    auto etaRegion = std::upper_bound(etaRegionEdges_.begin(), etaRegionEdges_.end(), tp->eta()) - etaRegionEdges_.begin() - 1;
 
-    inputsInRegions[getRegionIndex(phiRegion, etaRegion)].emplace_back(tp);
+    if (it_phi != phiRegionEdges_.end() && it_eta != etaRegionEdges_.end()) {
+      auto phiRegion = it_phi - phiRegionEdges_.begin();
+      auto etaRegion = it_eta - etaRegionEdges_.begin();
+      inputsInRegions[getRegionIndex(phiRegion, etaRegion)].emplace_back(tp);
+    }
   }
 
+  // Truncate number of inputs in each pf region
   for (auto& inputs : inputsInRegions) {
     if (inputs.size() > maxInputsPerRegion_) {
       inputs.resize(maxInputsPerRegion_);
