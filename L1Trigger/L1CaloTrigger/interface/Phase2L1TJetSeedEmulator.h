@@ -20,7 +20,6 @@
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 #include "FWCore/Framework/interface/one/EDProducer.h"
 #include "FWCore/Framework/interface/Event.h"
-#include "DataFormats/JetReco/interface/CaloJet.h"
 #include "DataFormats/L1TParticleFlow/interface/PFCandidate.h"
 #include "DataFormats/L1TParticleFlow/interface/PFCluster.h"
 #include "DataFormats/Common/interface/View.h"
@@ -43,8 +42,8 @@ public:
   l1t::PFCandidateCollection emulateEvent( Handle triggerPrimitives );
 
   l1t::PFCandidateCollection findSeeds(float seedThreshold) const;
-  float getTowerEnergy(int iEta, int iPhi) const;
-  bool trimTower(int etaIndex, int phiIndex) const;
+  float getBinContent(int iEta, int iPhi) const;
+  bool trimBin(int etaIndex, int phiIndex) const;
   void sortSeeds(const l1t::PFCandidateCollection unsortedJets, l1t::PFCandidateCollection& sortedJets);
 
   std::pair<double, double> regionEtaPhiLowEdges(unsigned int regionIndex) const;
@@ -68,7 +67,7 @@ public:
   void hybrid_bitonic_sort_and_crop_ref(unsigned int nIn, unsigned int nOut, const std::vector<T>& in, std::vector<T>& out);
 
   template <class Container>
-  void fillCaloGrid(std::vector<std::vector<float>>& caloGrid, const Container& triggerPrimitives, unsigned int regionIndex);
+  void fillHistogram(std::vector<std::vector<float>>& histogram, const Container& triggerPrimitives, unsigned int regionIndex);
 
   unsigned int getRegionIndex(unsigned int phiRegion, unsigned int etaRegion) const;
 
@@ -92,7 +91,7 @@ private:
   std::vector<double> phiRegionEdges_;
   unsigned int maxInputsPerRegion_;
 
-  std::vector<std::vector<float>> caloGrid_;
+  std::vector<std::vector<float>> histogram_;
 };
 
 // Template implementations
@@ -102,11 +101,11 @@ l1t::PFCandidateCollection Phase2L1TJetSeedEmulator::emulateEvent( Handle trigge
   std::vector<std::vector<reco::CandidatePtr>> inputsInRegions = prepareInputsIntoRegions<Handle>(triggerPrimitives);
 
   // histogramming the data
-  for (auto& row : caloGrid_) {
+  for (auto& row : histogram_) {
     std::fill(row.begin(), row.end(), 0.0f);
   }
   for (unsigned int iInputRegion = 0; iInputRegion < inputsInRegions.size(); ++iInputRegion) {
-    fillCaloGrid<>(caloGrid_, inputsInRegions[iInputRegion], iInputRegion);
+    fillHistogram<>(histogram_, inputsInRegions[iInputRegion], iInputRegion);
   }
 
   // find the seeds
@@ -127,10 +126,10 @@ void Phase2L1TJetSeedEmulator::swap(T& a, T& b) {
 }
 
 template <class Container>
-void Phase2L1TJetSeedEmulator::fillCaloGrid(std::vector<std::vector<float>>& caloGrid, const Container& triggerPrimitives, unsigned int regionIndex) {
+void Phase2L1TJetSeedEmulator::fillHistogram(std::vector<std::vector<float>>& histogram, const Container& triggerPrimitives, unsigned int regionIndex) {
   for (const auto& primitive : triggerPrimitives) {
     auto binEtaPhi = getCandidateBin(primitive->eta(), primitive->phi(), regionIndex);
-    caloGrid[binEtaPhi.second][binEtaPhi.first] += float(l1ct::pt_t(primitive->pt()));
+    histogram[binEtaPhi.second][binEtaPhi.first] += float(l1ct::pt_t(primitive->pt()));
   }
 }
 

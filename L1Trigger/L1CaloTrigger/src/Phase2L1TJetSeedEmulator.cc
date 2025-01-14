@@ -32,10 +32,10 @@ Phase2L1TJetSeedEmulator::Phase2L1TJetSeedEmulator(bool debug, std::vector<doubl
     etaRegionEdges_(etaRegionEdges),
     phiRegionEdges_(phiRegionEdges),
     maxInputsPerRegion_(maxInputsPerRegion),
-    caloGrid_(etaBinning_.size() - 1, std::vector<float>(nBinsPhi, 0.0f)) {
+    histogram_(etaBinning_.size() - 1, std::vector<float>(nBinsPhi, 0.0f)) {
 }
 
-bool Phase2L1TJetSeedEmulator::trimTower(const int etaIndex, const int phiIndex) const {
+bool Phase2L1TJetSeedEmulator::trimBin(const int etaIndex, const int phiIndex) const {
   int etaHalfSize = jetIEtaSize_ / 2;
   int phiHalfSize = jetIPhiSize_ / 2;
 
@@ -58,9 +58,9 @@ bool Phase2L1TJetSeedEmulator::trimTower(const int etaIndex, const int phiIndex)
 // member functions
 //
 
-float Phase2L1TJetSeedEmulator::getTowerEnergy(int iEta, int iPhi) const {
-  int nBinsEta = caloGrid_.size();
-  int nBinsPhi = caloGrid_[0].size();
+float Phase2L1TJetSeedEmulator::getBinContent(int iEta, int iPhi) const {
+  int nBinsEta = histogram_.size();
+  int nBinsPhi = histogram_[0].size();
   while (iPhi < 0) {
     iPhi += nBinsPhi;
   }
@@ -70,12 +70,12 @@ float Phase2L1TJetSeedEmulator::getTowerEnergy(int iEta, int iPhi) const {
   if (iEta < 0 || iEta >= nBinsEta) {
     return 0;
   }
-  return caloGrid_[iEta][iPhi];
+  return histogram_[iEta][iPhi];
 }
 
 l1t::PFCandidateCollection Phase2L1TJetSeedEmulator::findSeeds(float seedThreshold) const {
-  int nBinsX = caloGrid_.size();
-  int nBinsY = caloGrid_[0].size();
+  int nBinsX = histogram_.size();
+  int nBinsY = histogram_[0].size();
 
   l1t::PFCandidateCollection seeds;
 
@@ -84,7 +84,7 @@ l1t::PFCandidateCollection Phase2L1TJetSeedEmulator::findSeeds(float seedThresho
 
   for (int iPhi = 0; iPhi < nBinsY; iPhi++) {
     for (int iEta = 0; iEta < nBinsX; iEta++) {
-      float centralPt = caloGrid_[iEta][iPhi];
+      float centralPt = histogram_[iEta][iPhi];
       if (centralPt < seedThreshold)
         continue;
 
@@ -92,23 +92,23 @@ l1t::PFCandidateCollection Phase2L1TJetSeedEmulator::findSeeds(float seedThresho
       for (int etaIndex = -etaHalfSize; etaIndex <= etaHalfSize; etaIndex++) {
         for (int phiIndex = -phiHalfSize; phiIndex <= phiHalfSize; phiIndex++) {
           if (trimmedGrid_) {
-            if (trimTower(etaIndex, phiIndex))
+            if (trimBin(etaIndex, phiIndex))
               continue;
           }
 
           if ((etaIndex == 0) && (phiIndex == 0))
             continue;
           if (etaIndex > 0) {
-            isLocalMaximum = ((isLocalMaximum) && (centralPt > getTowerEnergy(iEta + etaIndex, iPhi + phiIndex)));
+            isLocalMaximum = ((isLocalMaximum) && (centralPt > getBinContent(iEta + etaIndex, iPhi + phiIndex)));
           } else if ( etaIndex < 0 ) {
-            isLocalMaximum = ((isLocalMaximum) && (centralPt >= getTowerEnergy(iEta + etaIndex, iPhi + phiIndex)));
+            isLocalMaximum = ((isLocalMaximum) && (centralPt >= getBinContent(iEta + etaIndex, iPhi + phiIndex)));
           }
           else {
             if ( phiIndex > 0 ) {
-              isLocalMaximum = ((isLocalMaximum) && (centralPt > getTowerEnergy(iEta + etaIndex, iPhi + phiIndex)));
+              isLocalMaximum = ((isLocalMaximum) && (centralPt > getBinContent(iEta + etaIndex, iPhi + phiIndex)));
             }
             else {
-              isLocalMaximum = ((isLocalMaximum) && (centralPt >= getTowerEnergy(iEta + etaIndex, iPhi + phiIndex)));
+              isLocalMaximum = ((isLocalMaximum) && (centralPt >= getBinContent(iEta + etaIndex, iPhi + phiIndex)));
             }
           }
         }
