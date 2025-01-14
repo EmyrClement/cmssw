@@ -17,10 +17,9 @@
 //
 // constructors and destructor
 //
-Phase2L1TJetSeedEmulator::Phase2L1TJetSeedEmulator(bool debug, std::vector<double> etaBinning, unsigned int nBinsPhi, unsigned int jetIEtaSize, unsigned int jetIPhiSize, bool trimmedGrid, double seedPtThreshold, double ptlsb, double philsb, double etalsb, std::vector<double> etaRegionEdges, std::vector<double> phiRegionEdges ,unsigned int maxInputsPerRegion) 
+Phase2L1TJetSeedEmulator::Phase2L1TJetSeedEmulator(bool debug, unsigned int nBinsEta, unsigned int nBinsPhi, unsigned int jetIEtaSize, unsigned int jetIPhiSize, bool trimmedGrid, double seedPtThreshold, double ptlsb, double philsb, double etalsb, std::vector<double> etaRegionEdges, std::vector<double> phiRegionEdges ,unsigned int maxInputsPerRegion) 
   : debug_(debug),
-    etaBinning_(etaBinning),
-    nBinsEta_(etaBinning_.size() - 1),
+    nBinsEta_(nBinsEta),
     nBinsPhi_(nBinsPhi),
     jetIEtaSize_(jetIEtaSize),
     jetIPhiSize_(jetIPhiSize),
@@ -32,7 +31,7 @@ Phase2L1TJetSeedEmulator::Phase2L1TJetSeedEmulator(bool debug, std::vector<doubl
     etaRegionEdges_(etaRegionEdges),
     phiRegionEdges_(phiRegionEdges),
     maxInputsPerRegion_(maxInputsPerRegion),
-    histogram_(etaBinning_.size() - 1, std::vector<float>(nBinsPhi, 0.0f)) {
+    histogram_(nBinsEta, std::vector<float>(nBinsPhi, 0.0f)) {
 }
 
 bool Phase2L1TJetSeedEmulator::trimBin(const int etaIndex, const int phiIndex) const {

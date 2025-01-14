@@ -36,7 +36,7 @@
 
 class Phase2L1TJetSeedEmulator {
 public:
-  Phase2L1TJetSeedEmulator(bool debug, std::vector<double> etaBinning, unsigned int nBinsPhi, unsigned int jetIEtaSize, unsigned int jetIPhiSize, bool trimmedGrid, double seedPtThreshold, double ptlsb, double philsb, double etalsb, std::vector<double> etaRegionEdges, std::vector<double> phiRegionEdges ,unsigned int maxInputsPerRegion );
+  Phase2L1TJetSeedEmulator(bool debug, unsigned int nBinsEta, unsigned int nBinsPhi, unsigned int jetIEtaSize, unsigned int jetIPhiSize, bool trimmedGrid, double seedPtThreshold, double ptlsb, double philsb, double etalsb, std::vector<double> etaRegionEdges, std::vector<double> phiRegionEdges ,unsigned int maxInputsPerRegion );
 
   template <class Handle>
   l1t::PFCandidateCollection emulateEvent( Handle triggerPrimitives );
@@ -77,8 +77,7 @@ public:
 private:
   bool debug_;
 
-  std::vector<double> etaBinning_;
-  size_t nBinsEta_;
+  unsigned int nBinsEta_;
   unsigned int nBinsPhi_;
   unsigned int jetIEtaSize_;
   unsigned int jetIPhiSize_;
