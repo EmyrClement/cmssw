@@ -36,10 +36,9 @@
 
 class Phase2L1TJetSeedEmulator {
 public:
-  Phase2L1TJetSeedEmulator(bool debug, unsigned int nBinsEta, unsigned int nBinsPhi, unsigned int jetIEtaSize, unsigned int jetIPhiSize, bool trimmedGrid, double seedPtThreshold, double ptlsb, double philsb, double etalsb, std::vector<double> etaRegionEdges, std::vector<double> phiRegionEdges ,unsigned int maxInputsPerRegion );
+  Phase2L1TJetSeedEmulator(bool debug, unsigned int nBinsEta, unsigned int nBinsPhi, unsigned int jetIEtaSize, unsigned int jetIPhiSize, bool trimmedGrid, double seedPtThreshold, std::vector<double> etaRegionEdges, std::vector<double> phiRegionEdges ,unsigned int maxInputsPerRegion );
 
-  template <class Handle>
-  l1t::PFCandidateCollection emulateEvent( Handle triggerPrimitives );
+  l1t::PFCandidateCollection emulateEvent(const std::vector<l1ct::PuppiObj>& puppiObjects);
 
   l1t::PFCandidateCollection findSeeds(float seedThreshold) const;
   float getBinContent(int iEta, int iPhi) const;
@@ -49,7 +48,7 @@ public:
   std::pair<double, double> regionEtaPhiLowEdges(unsigned int regionIndex) const;
   std::pair<double, double> regionEtaPhiUpEdges(unsigned int regionIndex) const;
   std::pair<unsigned, unsigned> regionEtaPhiBinOffset(unsigned int regionIndex) const;
-  std::pair<unsigned, unsigned> getCandidateBin(float eta, float phi, unsigned int regionIndex) const;
+  std::pair<unsigned, unsigned> getCandidateBin(const l1ct::glbeta_t glbEta, const l1ct::glbphi_t glbPhi, const unsigned int regionIndex) const;
 
   template <typename T>
   void swap(T& a, T& b);
@@ -66,13 +65,11 @@ public:
   template <typename T>
   void hybrid_bitonic_sort_and_crop_ref(unsigned int nIn, unsigned int nOut, const std::vector<T>& in, std::vector<T>& out);
 
-  template <class Container>
-  void fillHistogram(std::vector<std::vector<float>>& histogram, const Container& triggerPrimitives, unsigned int regionIndex);
+  void fillHistogram(std::vector<std::vector<l1ct::pt_t>>& histogram, const std::vector<l1ct::PuppiObj>& puppis, unsigned int regionIndex);
 
   unsigned int getRegionIndex(unsigned int phiRegion, unsigned int etaRegion) const;
 
-  template <class Handle>
-  std::vector<std::vector<edm::Ptr<reco::Candidate>>> prepareInputsIntoRegions(const Handle& triggerPrimitives);
+  std::vector<std::vector<l1ct::PuppiObj>> prepareInputsIntoRegions(const std::vector<l1ct::PuppiObj>& puppiObjects);
 
 private:
   bool debug_;
@@ -83,53 +80,18 @@ private:
   unsigned int jetIPhiSize_;
   bool trimmedGrid_;
   double seedPtThreshold_;
-  double ptlsb_;
-  double philsb_;
-  double etalsb_;
   std::vector<double> etaRegionEdges_;
   std::vector<double> phiRegionEdges_;
   unsigned int maxInputsPerRegion_;
 
-  std::vector<std::vector<float>> histogram_;
+  std::vector<std::vector<l1ct::pt_t>> histogram_;
 };
-
-// Template implementations
-template <class Handle>
-l1t::PFCandidateCollection Phase2L1TJetSeedEmulator::emulateEvent( Handle triggerPrimitives  ) {
-  // sort inputs into PF regions
-  std::vector<std::vector<reco::CandidatePtr>> inputsInRegions = prepareInputsIntoRegions<Handle>(triggerPrimitives);
-
-  // histogramming the data
-  for (auto& row : histogram_) {
-    std::fill(row.begin(), row.end(), 0.0f);
-  }
-  for (unsigned int iInputRegion = 0; iInputRegion < inputsInRegions.size(); ++iInputRegion) {
-    fillHistogram<>(histogram_, inputsInRegions[iInputRegion], iInputRegion);
-  }
-
-  // find the seeds
-  const auto& seedsVector = findSeeds(seedPtThreshold_);  // seedPtThreshold = 5
-
-  // sort by pt
-  l1t::PFCandidateCollection sortedSeeds;
-  sortSeeds( seedsVector, sortedSeeds );
-  return sortedSeeds;
-}
-
 
 template <typename T>
 void Phase2L1TJetSeedEmulator::swap(T& a, T& b) {
   T temp = a;
   a = b;
   b = temp;
-}
-
-template <class Container>
-void Phase2L1TJetSeedEmulator::fillHistogram(std::vector<std::vector<float>>& histogram, const Container& triggerPrimitives, unsigned int regionIndex) {
-  for (const auto& primitive : triggerPrimitives) {
-    auto binEtaPhi = getCandidateBin(primitive->eta(), primitive->phi(), regionIndex);
-    histogram[binEtaPhi.second][binEtaPhi.first] += float(l1ct::pt_t(primitive->pt()));
-  }
 }
 
 template <typename T>
@@ -179,53 +141,6 @@ void Phase2L1TJetSeedEmulator::hybrid_bitonic_sort_and_crop_ref(unsigned int nIn
   for (unsigned int i = 0; i < nOut; ++i) {
     out[i] = work[i];
   }
-}
-
-
-
-template <class Handle>
-std::vector<std::vector<edm::Ptr<reco::Candidate>>> Phase2L1TJetSeedEmulator::prepareInputsIntoRegions(const Handle& triggerPrimitives) {
-  std::vector<std::vector<reco::CandidatePtr>> inputsInRegions{etaRegionEdges_.size() * (phiRegionEdges_.size() - 1)};
-
-  for (unsigned int i = 0; i < triggerPrimitives->size(); ++i) {
-    reco::CandidatePtr tp(triggerPrimitives, i);
-
-    if (
-      tp->phi() < phiRegionEdges_.front() || tp->phi() >= phiRegionEdges_.back() ||
-        tp->eta() < etaRegionEdges_.front() || tp->eta() >= etaRegionEdges_.back())
-      continue;
-
-    // Which phi region does this tp belong to
-    auto it_phi = phiRegionEdges_.begin();
-    auto tp_phi = tp->phi();
-
-    it_phi = std::upper_bound(phiRegionEdges_.begin(), phiRegionEdges_.end(), tp_phi) - 1;
-    if ( l1ct::Scales::makeGlbPhi( *(it_phi+1) ) == l1ct::Scales::makeGlbPhi( tp_phi ) ) {
-      it_phi += 1;
-    }
-    // Which eta region does this tp belong to
-    auto it_eta = etaRegionEdges_.begin();
-    it_eta = std::upper_bound(etaRegionEdges_.begin(), etaRegionEdges_.end(), tp->eta()) - 1;
-    if ( l1ct::Scales::makeGlbEta( *(it_eta+1) ) == l1ct::Scales::makeGlbEta( tp->eta() ) ) {
-      it_eta += 1;
-    }
-
-
-    if (it_phi != phiRegionEdges_.end() && it_eta != etaRegionEdges_.end()) {
-      auto phiRegion = it_phi - phiRegionEdges_.begin();
-      auto etaRegion = it_eta - etaRegionEdges_.begin();
-      inputsInRegions[getRegionIndex(phiRegion, etaRegion)].emplace_back(tp);
-    }
-  }
-
-  // Truncate number of inputs in each pf region
-  for (auto& inputs : inputsInRegions) {
-    if (inputs.size() > maxInputsPerRegion_) {
-      inputs.resize(maxInputsPerRegion_);
-    }
-  }
-
-  return inputsInRegions;
 }
 
 #endif

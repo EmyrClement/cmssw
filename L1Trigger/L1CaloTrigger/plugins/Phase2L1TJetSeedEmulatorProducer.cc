@@ -37,9 +37,9 @@ public:
 
 private:
   void produce(edm::Event&, const edm::EventSetup&) override;
-  
+  void convertEDMToHW(const l1t::PFCandidateCollection&, std::vector<l1ct::PuppiObj>&);
 
-  edm::EDGetTokenT<edm::View<reco::Candidate>> inputCollectionTag_;
+  edm::EDGetTokenT<l1t::PFCandidateCollection> inputCollectionTag_;
   
   bool debug;
   size_t nBinsEta;
@@ -48,9 +48,6 @@ private:
   unsigned int jetIPhiSize;
   bool trimmedGrid;
   double seedPtThreshold;
-  double ptlsb;
-  double philsb;
-  double etalsb;
   // Eta and phi edges of input PF regions
   std::vector<double> etaRegionEdges;
   std::vector<double> phiRegionEdges;
@@ -63,7 +60,7 @@ private:
 
 Phase2L1TJetSeedEmulatorProducer::Phase2L1TJetSeedEmulatorProducer(const edm::ParameterSet& iConfig)
   : inputCollectionTag_{
-      consumes<edm::View<reco::Candidate>>(iConfig.getParameter<edm::InputTag>("inputCollectionTag"))},
+      consumes<l1t::PFCandidateCollection>(iConfig.getParameter<edm::InputTag>("inputCollectionTag"))},
       debug(iConfig.getParameter<bool>("debug")),
       nBinsEta(iConfig.getParameter<unsigned int>("nBinsEta")),
       nBinsPhi(iConfig.getParameter<unsigned int>("nBinsPhi")),
@@ -71,14 +68,11 @@ Phase2L1TJetSeedEmulatorProducer::Phase2L1TJetSeedEmulatorProducer(const edm::Pa
       jetIPhiSize(iConfig.getParameter<unsigned int>("jetIPhiSize")),
       trimmedGrid(iConfig.getParameter<bool>("trimmedGrid")),
       seedPtThreshold(iConfig.getParameter<double>("seedPtThreshold")),
-      ptlsb(iConfig.getParameter<double>("ptlsb")),
-      philsb(iConfig.getParameter<double>("philsb")),
-      etalsb(iConfig.getParameter<double>("etalsb")),
       etaRegionEdges(iConfig.getParameter<std::vector<double>>("etaRegions")),
       phiRegionEdges(iConfig.getParameter<std::vector<double>>("phiRegions")),
       maxInputsPerRegion(iConfig.getParameter<unsigned int>("maxInputsPerRegion")),
       emulator(debug, nBinsEta, nBinsPhi, jetIEtaSize, jetIPhiSize, trimmedGrid, 
-          seedPtThreshold, ptlsb, philsb, etalsb, etaRegionEdges, phiRegionEdges, maxInputsPerRegion),
+          seedPtThreshold, etaRegionEdges, phiRegionEdges, maxInputsPerRegion),
       outputCollectionName(iConfig.getParameter<std::string>("outputCollectionName")) {
 
   produces<l1t::PFCandidateCollection>(outputCollectionName);
@@ -87,17 +81,28 @@ Phase2L1TJetSeedEmulatorProducer::Phase2L1TJetSeedEmulatorProducer(const edm::Pa
 Phase2L1TJetSeedEmulatorProducer::~Phase2L1TJetSeedEmulatorProducer() {}
 
 
+void Phase2L1TJetSeedEmulatorProducer::convertEDMToHW(const l1t::PFCandidateCollection& inputCollection, std::vector<l1ct::PuppiObj>& puppiObjects) {
+  puppiObjects.reserve(inputCollection.size());
+  for (const auto& candidate : inputCollection) {
+    l1ct::PuppiObj puppiObj;
+    puppiObj.initFromBits(candidate.encodedPuppi64());
+    puppiObjects.push_back(puppiObj);
+  }
+}
+
 void Phase2L1TJetSeedEmulatorProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup) {
-  edm::Handle<edm::View<reco::Candidate>> inputCollectionHandle;
+  edm::Handle<l1t::PFCandidateCollection> inputCollectionHandle;
   iEvent.getByToken(inputCollectionTag_, inputCollectionHandle);
 
-  std::unique_ptr<l1t::PFCandidateCollection> jetSeedsCollection(new l1t::PFCandidateCollection);
+  std::vector<l1ct::PuppiObj> puppiObjects;
+  convertEDMToHW(*inputCollectionHandle, puppiObjects);
 
-  l1t::PFCandidateCollection sortedSeeds = emulator.emulateEvent( inputCollectionHandle );
+  l1t::PFCandidateCollection sortedSeeds = emulator.emulateEvent(puppiObjects);
 
-  jetSeedsCollection->swap(sortedSeeds);
+  std::unique_ptr<l1t::PFCandidateCollection> outputSeedsCollection(new l1t::PFCandidateCollection);
+  outputSeedsCollection->swap(sortedSeeds);
 
-  iEvent.put(std::move(jetSeedsCollection), outputCollectionName );
+  iEvent.put(std::move(outputSeedsCollection), outputCollectionName);
 
   return;
 }
@@ -114,10 +119,7 @@ void Phase2L1TJetSeedEmulatorProducer::fillDescriptions(edm::ConfigurationDescri
   desc.add<unsigned int>("jetIPhiSize", 9);
   desc.add<bool>("trimmedGrid", true);
   desc.add<double>("seedPtThreshold", 1);
-  desc.add<double>("ptlsb", 0.25),
-  desc.add<double>("philsb", 0.0043633231),
-  desc.add<double>("etalsb", 0.0043633231),
-  desc.add<string>("outputCollectionName", "histoJetSeeds9x9trimmed");
+  desc.add<std::string>("outputCollectionName", "histoJetSeeds9x9trimmed");
   desc.add<std::vector<double>>("etaRegions", { -3, -2.5, -1.5, -1.0, -0.5, 0, 0.5, 1, 1.5, 2.5, 3 });
   desc.add<std::vector<double>>("phiRegions", { -3.15, -2.45, -1.75, -1.05, -0.35, 0.35, 1.05, 1.75, 2.45, 3.15 });
   desc.add<unsigned int>("maxInputsPerRegion", 18);
