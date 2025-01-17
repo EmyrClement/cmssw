@@ -97,12 +97,25 @@ void Phase2L1TJetSeedEmulatorProducer::produce(edm::Event& iEvent, const edm::Ev
   std::vector<l1ct::PuppiObj> puppiObjects;
   convertEDMToHW(*inputCollectionHandle, puppiObjects);
 
-  l1t::PFCandidateCollection sortedSeeds = emulator.emulateEvent(puppiObjects);
+  std::vector<l1ct::PuppiObj> sortedSeeds = emulator.emulateEvent(puppiObjects);
 
-  std::unique_ptr<l1t::PFCandidateCollection> outputSeedsCollection(new l1t::PFCandidateCollection);
-  outputSeedsCollection->swap(sortedSeeds);
+  std::vector<l1t::PFCandidate> edmSeeds;
+  for (const auto& seed : sortedSeeds) {
+    l1t::PFCandidate edmSeed;
 
-  iEvent.put(std::move(outputSeedsCollection), outputCollectionName);
+    reco::Candidate::PolarLorentzVector pfVector;
+    pfVector.SetPt(l1ct::Scales::floatPt(seed.hwPt));
+    pfVector.SetPhi(l1ct::Scales::floatPhi(seed.hwPhi));
+    pfVector.SetEta(l1ct::Scales::floatEta(seed.hwEta));
+    edmSeed.setP4( pfVector );
+    edmSeed.setEncodedPuppi64(seed.pack().to_uint64());
+    edmSeeds.emplace_back(edmSeed);
+  }
+
+  std::unique_ptr<l1t::PFCandidateCollection> edmOutputSeeds(new l1t::PFCandidateCollection);
+  edmOutputSeeds->swap(edmSeeds);
+
+  iEvent.put(std::move(edmOutputSeeds), outputCollectionName);
 
   return;
 }

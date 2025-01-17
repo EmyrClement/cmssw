@@ -16,17 +16,7 @@
 //
 
 // system include files
-#include "FWCore/Framework/interface/Frameworkfwd.h"
-#include "FWCore/ParameterSet/interface/ParameterSet.h"
-#include "FWCore/Framework/interface/one/EDProducer.h"
-#include "FWCore/Framework/interface/Event.h"
-#include "DataFormats/L1TParticleFlow/interface/PFCandidate.h"
-#include "DataFormats/L1TParticleFlow/interface/PFCluster.h"
-#include "DataFormats/Common/interface/View.h"
-#include "DataFormats/Candidate/interface/Candidate.h"
-#include "DataFormats/Math/interface/LorentzVector.h"
 #include "DataFormats/L1TParticleFlow/interface/puppi.h"
-#include "DataFormats/L1TParticleFlow/interface/gt_datatypes.h"
 #include "L1Trigger/Phase2L1ParticleFlow/interface/common/bitonic_hybrid_sort_ref.h"
 
 #include <vector>
@@ -38,12 +28,12 @@ class Phase2L1TJetSeedEmulator {
 public:
   Phase2L1TJetSeedEmulator(bool debug, unsigned int nBinsEta, unsigned int nBinsPhi, unsigned int jetIEtaSize, unsigned int jetIPhiSize, bool trimmedGrid, double seedPtThreshold, std::vector<double> etaRegionEdges, std::vector<double> phiRegionEdges ,unsigned int maxInputsPerRegion );
 
-  l1t::PFCandidateCollection emulateEvent(const std::vector<l1ct::PuppiObj>& puppiObjects);
+  std::vector<l1ct::PuppiObj> emulateEvent(const std::vector<l1ct::PuppiObj>& puppiObjects);
 
-  l1t::PFCandidateCollection findSeeds(float seedThreshold) const;
+  std::vector<l1ct::PuppiObj> findSeeds(float seedThreshold) const;
   float getBinContent(int iEta, int iPhi) const;
   bool trimBin(int etaIndex, int phiIndex) const;
-  void sortSeeds(const l1t::PFCandidateCollection unsortedJets, l1t::PFCandidateCollection& sortedJets);
+  void sortSeeds(const std::vector<l1ct::PuppiObj>& unsortedSeeds, std::vector<l1ct::PuppiObj>& sortedSeeds);
 
   std::pair<double, double> regionEtaPhiLowEdges(unsigned int regionIndex) const;
   std::pair<double, double> regionEtaPhiUpEdges(unsigned int regionIndex) const;
@@ -83,8 +73,18 @@ private:
   std::vector<double> etaRegionEdges_;
   std::vector<double> phiRegionEdges_;
   unsigned int maxInputsPerRegion_;
-
+  double etaBinLSB_;
+  double phiBinLSB_;
+  int etaBinSize_;
+  int phiBinSize_;
+  unsigned int nBinsPhiRegion_; // New data member
   std::vector<std::vector<l1ct::pt_t>> histogram_;
+
+  // Constants used by seed sort 
+  static constexpr unsigned int nEtaRegions_ = 4;
+  static constexpr unsigned int nInputsPerSortModule_ = 18;
+  static constexpr unsigned int nOutputSeedsPerEtaRegion_ = 4;
+  static constexpr unsigned int nOutputSeedsToGT_ = 12;
 };
 
 template <typename T>
@@ -99,9 +99,9 @@ void Phase2L1TJetSeedEmulator::compAndSwap(std::vector<T>& a, unsigned int i, un
   if (i >= a.size() || j >= a.size() || i == j) return;
 
   if (dir) {
-    if (a[j].pt() < a[i].pt()) std::swap(a[i], a[j]);
+    if (a[j] < a[i]) std::swap(a[i], a[j]);
   } else {
-    if (a[i].pt() < a[j].pt()) std::swap(a[i], a[j]);
+    if (a[i] < a[j]) std::swap(a[i], a[j]);
   }
 }
 

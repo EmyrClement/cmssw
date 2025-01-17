@@ -28,7 +28,12 @@ Phase2L1TJetSeedEmulator::Phase2L1TJetSeedEmulator(bool debug, unsigned int nBin
     etaRegionEdges_(etaRegionEdges),
     phiRegionEdges_(phiRegionEdges),
     maxInputsPerRegion_(maxInputsPerRegion),
-    histogram_(nBinsEta, std::vector<l1ct::pt_t>(nBinsPhi, 0)) {
+    etaBinLSB_((etaRegionEdges.back() - etaRegionEdges.front()) / nBinsEta),
+    phiBinLSB_((phiRegionEdges.back() - phiRegionEdges.front()) / nBinsPhi),
+    etaBinSize_(l1ct::Scales::makeGlbEta(etaBinLSB_)),
+    phiBinSize_(l1ct::Scales::makeGlbPhi(phiBinLSB_)),
+    nBinsPhiRegion_( nBinsPhi_ / ( phiRegionEdges_.size() - 1 ) ),
+    histogram_(nBinsEta, std::vector<l1ct::pt_t>(nBinsPhi, 0)) { 
 }
 
 bool Phase2L1TJetSeedEmulator::trimBin(const int etaIndex, const int phiIndex) const {
@@ -69,11 +74,11 @@ float Phase2L1TJetSeedEmulator::getBinContent(int iEta, int iPhi) const {
   return histogram_[iEta][iPhi];
 }
 
-l1t::PFCandidateCollection Phase2L1TJetSeedEmulator::findSeeds(float seedThreshold) const {
+std::vector<l1ct::PuppiObj> Phase2L1TJetSeedEmulator::findSeeds(float seedThreshold) const {
   int nBinsX = histogram_.size();
   int nBinsY = histogram_[0].size();
 
-  l1t::PFCandidateCollection seeds;
+  std::vector<l1ct::PuppiObj> seeds;
 
   int etaHalfSize = (int)jetIEtaSize_ / 2;
   int phiHalfSize = (int)jetIPhiSize_ / 2;
@@ -111,144 +116,117 @@ l1t::PFCandidateCollection Phase2L1TJetSeedEmulator::findSeeds(float seedThresho
       }
 
       if (isLocalMaximum) {
-        l1t::PFCandidate p;
-        reco::Candidate::PolarLorentzVector pfVector;
-
-        const float etaLSB = 1.5 / 18;
-        double etaBinCentre = -3 + (iEta+0.5)*etaLSB;
-
-        const float phiLSB = 2. * M_PI / 72;
-        double phiBinCentre = -M_PI + ( iPhi+0.5 ) * phiLSB;
-
-        pfVector.SetPt(centralPt);
-        pfVector.SetPhi(phiBinCentre);
-        pfVector.SetEta(etaBinCentre);
-        p.setP4( pfVector );
-
-        l1ct::PuppiObj puppiObj;
-        puppiObj.hwPt = l1ct::Scales::makePtFromFloat( centralPt );
-        puppiObj.hwEta = l1ct::Scales::makeGlbEta( etaBinCentre );
-        puppiObj.hwPhi = l1ct::Scales::makeGlbPhi( phiBinCentre );
-        p.setEncodedPuppi64( puppiObj.pack().to_uint64() );
-
-        seeds.emplace_back(p);
+        l1ct::PuppiObj seed;
+        seed.hwPt = centralPt;
+        seed.hwEta = l1ct::Scales::makeGlbEta(etaRegionEdges_.front() + (iEta + 0.5) * etaBinLSB_);
+        seed.hwPhi = l1ct::Scales::makeGlbPhi(phiRegionEdges_.front() + (iPhi + 0.5) * phiBinLSB_);
+        seeds.emplace_back(seed);
       }
     }
   }
   return seeds;
 }
 
-void Phase2L1TJetSeedEmulator::sortSeeds(const l1t::PFCandidateCollection unsortedSeeds, l1t::PFCandidateCollection& sortedSeeds ) {
-
-  const unsigned int nEtaRegions = 4;
-  const unsigned int nInputsPerSortModule = 18;
-  const unsigned int nOutputSeedsPerEtaRegion = 4;
-  const unsigned int nOutputSeedsToGT = 12;
-
-  // unsigned int nUnsortedSeeds = unsortedSeeds.size();
+void Phase2L1TJetSeedEmulator::sortSeeds(const std::vector<l1ct::PuppiObj>& unsortedSeeds, std::vector<l1ct::PuppiObj>& sortedSeeds) {
   // Get seeds into the regions and time ordering seen in firmware
-  std::vector< std::vector< std::vector< l1t::PFCandidateCollection > > > seedsPerEtaPhiRegions( 
-    nEtaRegions, std::vector< std::vector< l1t::PFCandidateCollection > > (
-      2, std::vector< l1t::PFCandidateCollection > (
-        nInputsPerSortModule, l1t::PFCandidateCollection() ) ) );
+  std::vector<std::vector<std::vector<std::vector<l1ct::PuppiObj>>>> seedsPerEtaPhiRegions(
+    nEtaRegions_, std::vector<std::vector<std::vector<l1ct::PuppiObj>>>(
+      2, std::vector<std::vector<l1ct::PuppiObj>>(
+        nInputsPerSortModule_, std::vector<l1ct::PuppiObj>())));
+        for (const auto& seed : unsortedSeeds) {
+          unsigned int etaRegion = (seed.hwEta + l1ct::Scales::makeGlbEta(3)) / l1ct::Scales::makeGlbEta(1.5);
+          unsigned int seedPhiBin = (seed.hwPhi + l1ct::Scales::makeGlbPhi(M_PI)) / phiBinSize_;
+          unsigned int phiRegion = ((seedPhiBin) % 4) / 2;
 
+          if (etaRegion >= nEtaRegions_ || phiRegion >= 2 || seedPhiBin / 4 >= nInputsPerSortModule_) {
+            continue;
+          }
 
-  for ( const auto& seed : unsortedSeeds ) { 
-    unsigned int etaRegion = (seed.eta()+3)/1.5;
-    // unsigned int seedEtaBin = floor( ( seed.eta() + (2 - 1.0*etaRegion) * 1.5 ) / 0.0833 );
-    unsigned int seedPhiBin = floor( ( seed.phi() + M_PI ) / 0.0875 );
-    unsigned int phiRegion = ( ( seedPhiBin ) % 4 ) / 2;
-    seedsPerEtaPhiRegions[etaRegion][phiRegion][seedPhiBin/4].push_back(seed);
-  }
+          seedsPerEtaPhiRegions[etaRegion][phiRegion][seedPhiBin / 4].push_back(seed);
+        }
 
-  // Rotate to first phi region found in firmware
-  for ( unsigned iEtaRegion = 0; iEtaRegion < nEtaRegions; ++iEtaRegion ) {
-    for ( unsigned iPhiRegion = 0; iPhiRegion < 2; ++ iPhiRegion ) {
-      std::rotate( seedsPerEtaPhiRegions[iEtaRegion][iPhiRegion].begin(), seedsPerEtaPhiRegions[iEtaRegion][iPhiRegion].begin()+8, seedsPerEtaPhiRegions[iEtaRegion][iPhiRegion].end() );
-    }
-  }
+        // Rotate to first phi region found in firmware
+        for (unsigned iEtaRegion = 0; iEtaRegion < nEtaRegions_; ++iEtaRegion) {
+          for (unsigned iPhiRegion = 0; iPhiRegion < 2; ++iPhiRegion) {
+            std::rotate(seedsPerEtaPhiRegions[iEtaRegion][iPhiRegion].begin(), seedsPerEtaPhiRegions[iEtaRegion][iPhiRegion].begin() + 8, seedsPerEtaPhiRegions[iEtaRegion][iPhiRegion].end());
+          }
+        }
 
   // Push seeds in first phi bin to back, as these are found last after receiving all bins (i.e. handling of phi wrap-around)
-  for ( unsigned iEtaRegion = 0; iEtaRegion < nEtaRegions; ++iEtaRegion ) {
-    for ( unsigned iPhiRegion = 0; iPhiRegion < 2; ++ iPhiRegion ) {
-      std::rotate( seedsPerEtaPhiRegions[iEtaRegion][iPhiRegion].begin(), seedsPerEtaPhiRegions[iEtaRegion][iPhiRegion].begin()+1, seedsPerEtaPhiRegions[iEtaRegion][iPhiRegion].end() );
+  for (unsigned iEtaRegion = 0; iEtaRegion < nEtaRegions_; ++iEtaRegion) {
+    for (unsigned iPhiRegion = 0; iPhiRegion < 2; ++iPhiRegion) {
+      std::rotate(seedsPerEtaPhiRegions[iEtaRegion][iPhiRegion].begin(), seedsPerEtaPhiRegions[iEtaRegion][iPhiRegion].begin() + 1, seedsPerEtaPhiRegions[iEtaRegion][iPhiRegion].end());
     }
   }
-  std::vector< l1t::PFCandidate > sortedSeedsAllEta;
-  for ( unsigned iEtaRegion = 0; iEtaRegion < nEtaRegions; ++iEtaRegion ) {
-    std::vector<l1t::PFCandidate > sortedSeedsInEtaRegion;
-    for ( unsigned iPhiRegion = 0; iPhiRegion < 2; ++ iPhiRegion ) {
-      std::vector<l1t::PFCandidate > sortedSeeds( 4, l1t::PFCandidate() );
-      for ( unsigned int iInputClock = 0; iInputClock < nInputsPerSortModule; ++iInputClock ) {
 
+  std::vector<l1ct::PuppiObj> sortedSeedsAllEta;
+  for (unsigned iEtaRegion = 0; iEtaRegion < nEtaRegions_; ++iEtaRegion) {
+    std::vector<l1ct::PuppiObj> sortedSeedsInEtaRegion;
+    for (unsigned iPhiRegion = 0; iPhiRegion < 2; ++iPhiRegion) {
+      std::vector<l1ct::PuppiObj> sortedSeeds(4, l1ct::PuppiObj());
+      for (unsigned int iInputClock = 0; iInputClock < nInputsPerSortModule_; ++iInputClock) {
         // Sort input seeds
-        l1t::PFCandidateCollection inputSeeds = seedsPerEtaPhiRegions[iEtaRegion][iPhiRegion][iInputClock];
+        std::vector<l1ct::PuppiObj> inputSeeds = seedsPerEtaPhiRegions[iEtaRegion][iPhiRegion][iInputClock];
         // First by eta
-        std::sort(inputSeeds.begin(), inputSeeds.end(), [](l1t::PFCandidate seed1, l1t::PFCandidate seed2) {
-          return seed1.eta() < seed2.eta();
+        std::sort(inputSeeds.begin(), inputSeeds.end(), [](l1ct::PuppiObj seed1, l1ct::PuppiObj seed2) {
+          return seed1.hwEta < seed2.hwEta;
         });
-        inputSeeds.resize(nOutputSeedsPerEtaRegion);
-        hybrid_bitonic_sort_and_crop_ref(4,4,inputSeeds,inputSeeds);
+        inputSeeds.resize(nOutputSeedsPerEtaRegion_);
+        hybrid_bitonic_sort_and_crop_ref(4, 4, inputSeeds, inputSeeds);
 
         // Add to list of top 4 seeds so far
         // Merge with top 4 seeds so far, and sort
-        sortedSeeds.insert( sortedSeeds.end(), inputSeeds.begin(), inputSeeds.end() );
-        std::reverse(sortedSeeds.begin(),sortedSeeds.begin()+nOutputSeedsPerEtaRegion);
+        sortedSeeds.insert(sortedSeeds.end(), inputSeeds.begin(), inputSeeds.end());
+        std::reverse(sortedSeeds.begin(), sortedSeeds.begin() + nOutputSeedsPerEtaRegion_);
         for (int i = 0; i < 4; i++) {
-            compAndSwap(sortedSeeds, i, i + 4, 0);
+          compAndSwap(sortedSeeds, i, i + 4, 0);
         }
 
-        sortedSeeds.resize(nOutputSeedsPerEtaRegion);
-        std::reverse(sortedSeeds.begin(),sortedSeeds.end());
-        compAndSwap(sortedSeeds, 0, 2); 
-        compAndSwap(sortedSeeds, 1, 3); 
+        sortedSeeds.resize(nOutputSeedsPerEtaRegion_);
+        std::reverse(sortedSeeds.begin(), sortedSeeds.end());
+        compAndSwap(sortedSeeds, 0, 2);
+        compAndSwap(sortedSeeds, 1, 3);
         //---
-        compAndSwap(sortedSeeds, 0, 1); 
-        compAndSwap(sortedSeeds, 2, 3); 
+        compAndSwap(sortedSeeds, 0, 1);
+        compAndSwap(sortedSeeds, 2, 3);
       }
 
-      if ( iPhiRegion % 2 == 0 ) {
-        sortedSeedsInEtaRegion.insert( sortedSeedsInEtaRegion.end(), sortedSeeds.rbegin(), sortedSeeds.rend() );
-      }
-      else {
-        sortedSeedsInEtaRegion.insert( sortedSeedsInEtaRegion.end(), sortedSeeds.begin(), sortedSeeds.end() );
+      if (iPhiRegion % 2 == 0) {
+        sortedSeedsInEtaRegion.insert(sortedSeedsInEtaRegion.end(), sortedSeeds.rbegin(), sortedSeeds.rend());
+      } else {
+        sortedSeedsInEtaRegion.insert(sortedSeedsInEtaRegion.end(), sortedSeeds.begin(), sortedSeeds.end());
       }
     }
     // Sort 8 seeds in each eta region
-    // std::cout << "8 seeds in one of the regions, before merge" << std::endl;
-    std::reverse(sortedSeedsInEtaRegion.begin(),sortedSeedsInEtaRegion.end());
-    hybridBitonicMergeRef(sortedSeedsInEtaRegion,nOutputSeedsPerEtaRegion*2,0,false);
+    std::reverse(sortedSeedsInEtaRegion.begin(), sortedSeedsInEtaRegion.end());
+    hybridBitonicMergeRef(sortedSeedsInEtaRegion, nOutputSeedsPerEtaRegion_ * 2, 0, false);
 
-    if ( iEtaRegion % 2 == 0 ) {
-      sortedSeedsAllEta.insert(sortedSeedsAllEta.end(), sortedSeedsInEtaRegion.rbegin(), sortedSeedsInEtaRegion.rend() );
-    }
-    else {
-      sortedSeedsAllEta.insert(sortedSeedsAllEta.end(), sortedSeedsInEtaRegion.begin(), sortedSeedsInEtaRegion.end() );
+    if (iEtaRegion % 2 == 0) {
+      sortedSeedsAllEta.insert(sortedSeedsAllEta.end(), sortedSeedsInEtaRegion.rbegin(), sortedSeedsInEtaRegion.rend());
+    } else {
+      sortedSeedsAllEta.insert(sortedSeedsAllEta.end(), sortedSeedsInEtaRegion.begin(), sortedSeedsInEtaRegion.end());
     }
   }
-  hybridBitonicMergeRef(sortedSeedsAllEta,nOutputSeedsPerEtaRegion*2*2,0,false);
-  hybridBitonicMergeRef(sortedSeedsAllEta,nOutputSeedsPerEtaRegion*2*2,nOutputSeedsPerEtaRegion*2*2,false);
-  std::reverse(sortedSeedsAllEta.begin(),sortedSeedsAllEta.begin()+nOutputSeedsPerEtaRegion*2*2);
+  hybridBitonicMergeRef(sortedSeedsAllEta, nOutputSeedsPerEtaRegion_ * 2 * 2, 0, false);
+  hybridBitonicMergeRef(sortedSeedsAllEta, nOutputSeedsPerEtaRegion_ * 2 * 2, nOutputSeedsPerEtaRegion_ * 2 * 2, false);
+  std::reverse(sortedSeedsAllEta.begin(), sortedSeedsAllEta.begin() + nOutputSeedsPerEtaRegion_ * 2 * 2);
 
-  for ( unsigned int iJet = 0; iJet < nOutputSeedsPerEtaRegion*2*2 - nOutputSeedsToGT; ++iJet ) {
+  for (unsigned int iJet = 0; iJet < nOutputSeedsPerEtaRegion_ * 2 * 2 - nOutputSeedsToGT_; ++iJet) {
     sortedSeedsAllEta.erase(sortedSeedsAllEta.begin());
-    sortedSeedsAllEta.erase(sortedSeedsAllEta.end()-1);
+    sortedSeedsAllEta.erase(sortedSeedsAllEta.end() - 1);
   }
 
-  hybridBitonicMergeRef(sortedSeedsAllEta,nOutputSeedsToGT*2,0,false);
-  sortedSeedsAllEta.resize(nOutputSeedsToGT);
-  unsigned int nSeedsGT0=0;
-  for ( const auto& iJet : sortedSeedsAllEta ) {
-    if ( iJet.pt() > 0 ) {
-      sortedSeeds.push_back( iJet );
+  hybridBitonicMergeRef(sortedSeedsAllEta, nOutputSeedsToGT_ * 2, 0, false);
+  sortedSeedsAllEta.resize(nOutputSeedsToGT_);
+  unsigned int nSeedsGT0 = 0;
+  for (const auto& iJet : sortedSeedsAllEta) {
+    if (iJet.hwPt > 0) {
+      sortedSeeds.push_back(iJet);
       ++nSeedsGT0;
     }
   }
 }
 
-  // std::sort(seeds.begin(), seeds.end(), [](const l1t::PFCandidate& a, const l1t::PFCandidate& b) {    //sorting seeds by pt --should we use the regionised approach?
-  //   return a.pt() > b.pt();
-  // });
 std::pair<double, double> Phase2L1TJetSeedEmulator::regionEtaPhiLowEdges(const unsigned int regionIndex) const {
   unsigned int phiRegion = regionIndex % (phiRegionEdges_.size() - 1);
   unsigned int etaRegion = (regionIndex - phiRegion) / (phiRegionEdges_.size() - 1);
@@ -257,13 +235,12 @@ std::pair<double, double> Phase2L1TJetSeedEmulator::regionEtaPhiLowEdges(const u
 
 std::pair<unsigned, unsigned> Phase2L1TJetSeedEmulator::regionEtaPhiBinOffset(const unsigned int regionIndex) const {
   unsigned int phiRegion = regionIndex % (phiRegionEdges_.size() - 1);
-  unsigned int etaRegion = (regionIndex - phiRegion) / (phiRegionEdges_.size() - 1);
-
-  float etaBinOffset = ( 3 + etaRegionEdges_.at(etaRegion) ) / 0.5 * 6;
   float phiRegionWidth = abs(phiRegionEdges_.at(0) - phiRegionEdges_.at(1) );
+  float phiBinOffset = ( -1.0 * phiRegionEdges_.front() + phiRegionEdges_.at(phiRegion) ) / phiRegionWidth * nBinsPhiRegion_;
 
-  float nBinsPhiRegion = round(phiRegionWidth/(2*pi/72));
-  float phiBinOffset = ( -1.0 * phiRegionEdges_.front() + phiRegionEdges_.at(phiRegion) ) / phiRegionWidth * nBinsPhiRegion;
+  unsigned int etaRegion = (regionIndex - phiRegion) / (phiRegionEdges_.size() - 1);
+  float etaBinOffset = ( 3 + etaRegionEdges_.at(etaRegion) ) / 0.5 * 6;
+
   return std::pair<unsigned, unsigned>{phiBinOffset, etaBinOffset};
 }
 
@@ -284,18 +261,23 @@ std::pair<unsigned, unsigned> Phase2L1TJetSeedEmulator::getCandidateBin(const l1
   l1ct::glbeta_t etaOffset = l1ct::Scales::makeGlbEta(regionLowEdges.second);
   l1ct::glbphi_t phiOffset = l1ct::Scales::makeGlbPhi(regionLowEdges.first);
 
-  int etaBin = (glbEta - etaOffset) / 19 + 1;
-  int phiBin = (glbPhi - phiOffset) / 20 + 1;
+  int etaBin = (glbEta - etaOffset) / etaBinSize_ + 1;
+  int phiBin = (glbPhi - phiOffset) / phiBinSize_ + 1;
 
+  constexpr int nBinsEtaRegionWithTrack = 12;
+  constexpr int nBinsEtaRegionEverywhereElse = 6;
   if (regionLowEdges.second == -2.5 || regionLowEdges.second == 1.5) {
-    if (etaBin >= 12) etaBin = 12;
-  } else if (etaBin >= 6) {
-    etaBin = 6;
+    if (etaBin >= nBinsEtaRegionWithTrack) etaBin = nBinsEtaRegionWithTrack;
+  } else if (etaBin >= nBinsEtaRegionEverywhereElse) {
+    etaBin = nBinsEtaRegionEverywhereElse;
   }
-  if (phiBin >= 8) phiBin = 8;
+  if (phiBin >= int(nBinsPhiRegion_)) phiBin = nBinsPhiRegion_;
+
+  // Hopefully temporary fix for handling candidates with phi=pi
+  if ( glbPhi == 720 ) phiBin = 1;
+
 
   std::pair<unsigned, unsigned> binOffsets = regionEtaPhiBinOffset(regionIndex);
-
   return std::pair<unsigned, unsigned>{phiBin + binOffsets.first - 1, etaBin + binOffsets.second - 1};
 }
 
@@ -303,7 +285,7 @@ unsigned int Phase2L1TJetSeedEmulator::getRegionIndex(const unsigned int phiRegi
   return etaRegion * (phiRegionEdges_.size() - 1) + phiRegion;
 }
 
-l1t::PFCandidateCollection Phase2L1TJetSeedEmulator::emulateEvent(const std::vector<l1ct::PuppiObj>& puppiObjects) {
+std::vector<l1ct::PuppiObj> Phase2L1TJetSeedEmulator::emulateEvent(const std::vector<l1ct::PuppiObj>& puppiObjects) {
   // sort inputs into PF regions
   std::vector<std::vector<l1ct::PuppiObj>> inputsInRegions = prepareInputsIntoRegions(puppiObjects);
 
@@ -320,8 +302,9 @@ l1t::PFCandidateCollection Phase2L1TJetSeedEmulator::emulateEvent(const std::vec
   const auto& seedsVector = findSeeds(seedPtThreshold_);
 
   // sort by pt
-  l1t::PFCandidateCollection sortedSeeds;
+  std::vector<l1ct::PuppiObj> sortedSeeds;
   sortSeeds(seedsVector, sortedSeeds);
+
   return sortedSeeds;
 }
 
@@ -348,12 +331,18 @@ std::vector<std::vector<l1ct::PuppiObj>> Phase2L1TJetSeedEmulator::prepareInputs
       it_phi += 1;
     }
 
+    // Hopefully temporary fix for handling candidates with phi=pi
+    if ( tp.hwPhi == 720 ) {
+      it_phi = phiRegionEdges_.begin();
+    }
+
     // Which eta region does this tp belong to
     auto it_eta = etaRegionEdges_.begin();
     it_eta = std::upper_bound(etaRegionEdges_.begin(), etaRegionEdges_.end(), l1ct::Scales::floatEta(tp.hwEta)) - 1;
     if (l1ct::Scales::makeGlbEta(*(it_eta + 1)) == tp.hwEta) {
       it_eta += 1;
     }
+
 
     if (it_phi != phiRegionEdges_.end() && it_eta != etaRegionEdges_.end()) {
       auto phiRegion = it_phi - phiRegionEdges_.begin();
