@@ -28,17 +28,19 @@ class Phase2L1TJetSeedEmulator {
 public:
   Phase2L1TJetSeedEmulator(bool debug, unsigned int nBinsEta, unsigned int nBinsPhi, unsigned int jetIEtaSize, unsigned int jetIPhiSize, bool trimmedGrid, double seedPtThreshold, std::vector<double> etaRegionEdges, std::vector<double> phiRegionEdges ,unsigned int maxInputsPerRegion );
 
-  std::vector<l1ct::PuppiObj> emulateEvent(const std::vector<l1ct::PuppiObj>& puppiObjects);
+  std::vector<l1ct::PuppiObj> emulateEvent(const std::vector<std::vector<l1ct::PuppiObj>>& puppiObjects2D, const std::vector<std::pair<double, double>>& regionLowEdges); // Modified function declaration
 
   std::vector<l1ct::PuppiObj> findSeeds(float seedThreshold) const;
   float getBinContent(int iEta, int iPhi) const;
   bool trimBin(int etaIndex, int phiIndex) const;
   void sortSeeds(const std::vector<l1ct::PuppiObj>& unsortedSeeds, std::vector<l1ct::PuppiObj>& sortedSeeds);
 
-  std::pair<double, double> regionEtaPhiLowEdges(unsigned int regionIndex) const;
-  std::pair<double, double> regionEtaPhiUpEdges(unsigned int regionIndex) const;
-  std::pair<unsigned, unsigned> regionEtaPhiBinOffset(unsigned int regionIndex) const;
-  std::pair<unsigned, unsigned> getCandidateBin(const l1ct::glbeta_t glbEta, const l1ct::glbphi_t glbPhi, const unsigned int regionIndex) const;
+  std::pair<unsigned, unsigned> regionEtaPhiBinOffset(double etaLowEdge, double phiLowEdge) const; // Modified function declaration
+  std::pair<unsigned, unsigned> getCandidateBin(const l1ct::glbeta_t glbEta, const l1ct::glbphi_t glbPhi, double etaLowEdge, double phiLowEdge) const; // Modified function declaration
+
+  void fillHistogram(std::vector<std::vector<l1ct::pt_t>>& histogram, const std::vector<l1ct::PuppiObj>& puppis, double etaLowEdge, double phiLowEdge); // Modified function declaration
+
+  unsigned int getRegionIndex(unsigned int phiRegion, unsigned int etaRegion) const;
 
   template <typename T>
   void swap(T& a, T& b);
@@ -54,12 +56,6 @@ public:
 
   template <typename T>
   void hybrid_bitonic_sort_and_crop_ref(unsigned int nIn, unsigned int nOut, const std::vector<T>& in, std::vector<T>& out);
-
-  void fillHistogram(std::vector<std::vector<l1ct::pt_t>>& histogram, const std::vector<l1ct::PuppiObj>& puppis, unsigned int regionIndex);
-
-  unsigned int getRegionIndex(unsigned int phiRegion, unsigned int etaRegion) const;
-
-  std::vector<std::vector<l1ct::PuppiObj>> prepareInputsIntoRegions(const std::vector<l1ct::PuppiObj>& puppiObjects);
 
 private:
   bool debug_;

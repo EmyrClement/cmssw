@@ -38,8 +38,10 @@ public:
 private:
   void produce(edm::Event&, const edm::EventSetup&) override;
   void convertEDMToHW(const l1t::PFCandidateCollection&, std::vector<l1ct::PuppiObj>&);
+  void convertRegionalEDMToHW(const l1t::PFCandidateRegionalOutput&, std::vector<std::vector<l1ct::PuppiObj>>&, std::vector<std::pair<double, double>>&);
 
   edm::EDGetTokenT<l1t::PFCandidateCollection> inputCollectionTag_;
+  edm::EDGetTokenT<l1t::PFCandidateRegionalOutput> regionalInputTag_; // New input token
   
   bool debug;
   size_t nBinsEta;
@@ -61,6 +63,7 @@ private:
 Phase2L1TJetSeedEmulatorProducer::Phase2L1TJetSeedEmulatorProducer(const edm::ParameterSet& iConfig)
   : inputCollectionTag_{
       consumes<l1t::PFCandidateCollection>(iConfig.getParameter<edm::InputTag>("inputCollectionTag"))},
+      regionalInputTag_{consumes<l1t::PFCandidateRegionalOutput>(iConfig.getParameter<edm::InputTag>("regionalInputTag"))},
       debug(iConfig.getParameter<bool>("debug")),
       nBinsEta(iConfig.getParameter<unsigned int>("nBinsEta")),
       nBinsPhi(iConfig.getParameter<unsigned int>("nBinsPhi")),
@@ -73,7 +76,7 @@ Phase2L1TJetSeedEmulatorProducer::Phase2L1TJetSeedEmulatorProducer(const edm::Pa
       maxInputsPerRegion(iConfig.getParameter<unsigned int>("maxInputsPerRegion")),
       emulator(debug, nBinsEta, nBinsPhi, jetIEtaSize, jetIPhiSize, trimmedGrid, 
           seedPtThreshold, etaRegionEdges, phiRegionEdges, maxInputsPerRegion),
-      outputCollectionName(iConfig.getParameter<std::string>("outputCollectionName")) {
+      outputCollectionName(iConfig.getParameter<std::string>("outputCollectionName")) { // Initialize new input token
 
   produces<l1t::PFCandidateCollection>(outputCollectionName);
 }
@@ -90,14 +93,50 @@ void Phase2L1TJetSeedEmulatorProducer::convertEDMToHW(const l1t::PFCandidateColl
   }
 }
 
+void Phase2L1TJetSeedEmulatorProducer::convertRegionalEDMToHW(const l1t::PFCandidateRegionalOutput& regionalInput, std::vector<std::vector<l1ct::PuppiObj>>& puppiObjects2D, std::vector<std::pair<double, double>>& regionLowEdges) {
+  puppiObjects2D.resize(regionalInput.nRegions());
+  for (unsigned int iReg = 0, nReg = regionalInput.nRegions(); iReg < nReg; ++iReg) {
+    float eta = regionalInput.eta(iReg);
+    // Skip regions whose eta are outside the first/last values of etaRegionEdges
+    if (eta < etaRegionEdges.front() || eta > etaRegionEdges.back()) {
+      continue;
+    }
+
+    auto region = regionalInput.region(iReg);
+    puppiObjects2D[iReg].reserve(region.size());
+    for (const auto& candidate : region) {
+      l1ct::PuppiObj puppiObj;
+      puppiObj.initFromBits(candidate.encodedPuppi64());
+      puppiObjects2D[iReg].emplace_back(puppiObj);
+    }
+
+    // Find the low eta and phi edges
+    auto etaIt = std::lower_bound(etaRegionEdges.begin(), etaRegionEdges.end(), eta);
+    float phi = regionalInput.phi(iReg);
+    auto phiIt = std::lower_bound(phiRegionEdges.begin(), phiRegionEdges.end(), phi);
+
+    double lowEtaEdge = (etaIt != etaRegionEdges.begin()) ? *(etaIt - 1) : etaRegionEdges.front();
+    double lowPhiEdge = (phiIt != phiRegionEdges.begin()) ? *(phiIt - 1) : phiRegionEdges.front();
+    regionLowEdges.emplace_back(lowEtaEdge, lowPhiEdge);
+  }
+}
+
 void Phase2L1TJetSeedEmulatorProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup) {
   edm::Handle<l1t::PFCandidateCollection> inputCollectionHandle;
   iEvent.getByToken(inputCollectionTag_, inputCollectionHandle);
 
+  edm::Handle<l1t::PFCandidateRegionalOutput> regionalInputsHandle; // New handle
+  iEvent.getByToken(regionalInputTag_, regionalInputsHandle); // Get new input
+
+  std::vector<std::pair<double, double>> regionLowEdges;
+
   std::vector<l1ct::PuppiObj> puppiObjects;
   convertEDMToHW(*inputCollectionHandle, puppiObjects);
 
-  std::vector<l1ct::PuppiObj> sortedSeeds = emulator.emulateEvent(puppiObjects);
+  std::vector<std::vector<l1ct::PuppiObj>> puppiObjects2D;
+  convertRegionalEDMToHW(*regionalInputsHandle, puppiObjects2D, regionLowEdges); // Convert regional inputs to 2D vector
+
+  std::vector<l1ct::PuppiObj> sortedSeeds = emulator.emulateEvent(puppiObjects2D, regionLowEdges); // Call modified emulateEvent function
 
   std::vector<l1t::PFCandidate> edmSeeds;
   for (const auto& seed : sortedSeeds) {
@@ -107,7 +146,7 @@ void Phase2L1TJetSeedEmulatorProducer::produce(edm::Event& iEvent, const edm::Ev
     pfVector.SetPt(l1ct::Scales::floatPt(seed.hwPt));
     pfVector.SetPhi(l1ct::Scales::floatPhi(seed.hwPhi));
     pfVector.SetEta(l1ct::Scales::floatEta(seed.hwEta));
-    edmSeed.setP4( pfVector );
+    edmSeed.setP4(pfVector);
     edmSeed.setEncodedPuppi64(seed.pack().to_uint64());
     edmSeeds.emplace_back(edmSeed);
   }
@@ -126,6 +165,7 @@ void Phase2L1TJetSeedEmulatorProducer::fillDescriptions(edm::ConfigurationDescri
   edm::ParameterSetDescription desc;
   desc.add<bool>("debug", false);
   desc.add<edm::InputTag>("inputCollectionTag", edm::InputTag("l1tLayer1", "Puppi"));
+  desc.add<edm::InputTag>("regionalInputTag", edm::InputTag("l1tLayer1", "PuppiRegional")); // Add new parameter
   desc.add<unsigned int>("nBinsEta", 72);
   desc.add<unsigned int>("nBinsPhi", 72);
   desc.add<unsigned int>("jetIEtaSize", 9);

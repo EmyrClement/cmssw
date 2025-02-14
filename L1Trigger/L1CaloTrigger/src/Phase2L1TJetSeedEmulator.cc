@@ -59,6 +59,31 @@ bool Phase2L1TJetSeedEmulator::trimBin(const int etaIndex, const int phiIndex) c
 // member functions
 //
 
+std::vector<l1ct::PuppiObj> Phase2L1TJetSeedEmulator::emulateEvent(const std::vector<std::vector<l1ct::PuppiObj>>& puppiObjects2D, const std::vector<std::pair<double, double>>& regionLowEdges) {
+  // Resetting histogram
+  for (auto& row : histogram_) {
+    std::fill(row.begin(), row.end(), 0);
+  }
+  // histogramming the data
+  for (unsigned int iInputRegion = 0; iInputRegion < puppiObjects2D.size(); ++iInputRegion) {
+    if (puppiObjects2D[iInputRegion].empty()) {
+      continue;
+    }
+    double etaLowEdge = regionLowEdges[iInputRegion].first;
+    double phiLowEdge = regionLowEdges[iInputRegion].second;
+    fillHistogram(histogram_, puppiObjects2D[iInputRegion], etaLowEdge, phiLowEdge);
+  }
+
+  // find the seeds
+  const auto& seedsVector = findSeeds(seedPtThreshold_);
+
+  // sort by pt
+  std::vector<l1ct::PuppiObj> sortedSeeds;
+  sortSeeds(seedsVector, sortedSeeds);
+
+  return sortedSeeds;
+}
+
 float Phase2L1TJetSeedEmulator::getBinContent(int iEta, int iPhi) const {
   int nBinsEta = histogram_.size();
   int nBinsPhi = histogram_[0].size();
@@ -227,46 +252,30 @@ void Phase2L1TJetSeedEmulator::sortSeeds(const std::vector<l1ct::PuppiObj>& unso
   }
 }
 
-std::pair<double, double> Phase2L1TJetSeedEmulator::regionEtaPhiLowEdges(const unsigned int regionIndex) const {
-  unsigned int phiRegion = regionIndex % (phiRegionEdges_.size() - 1);
-  unsigned int etaRegion = (regionIndex - phiRegion) / (phiRegionEdges_.size() - 1);
-  return std::pair<double, double>{phiRegionEdges_.at(phiRegion), etaRegionEdges_.at(etaRegion)};
-}
+std::pair<unsigned, unsigned> Phase2L1TJetSeedEmulator::regionEtaPhiBinOffset(double etaLowEdge, double phiLowEdge) const {
+  float phiRegionWidth = abs(phiRegionEdges_.at(0) - phiRegionEdges_.at(1));
+  float phiBinOffset = (phiLowEdge - phiRegionEdges_.front()) / phiRegionWidth * nBinsPhiRegion_;
 
-std::pair<unsigned, unsigned> Phase2L1TJetSeedEmulator::regionEtaPhiBinOffset(const unsigned int regionIndex) const {
-  unsigned int phiRegion = regionIndex % (phiRegionEdges_.size() - 1);
-  float phiRegionWidth = abs(phiRegionEdges_.at(0) - phiRegionEdges_.at(1) );
-  float phiBinOffset = ( -1.0 * phiRegionEdges_.front() + phiRegionEdges_.at(phiRegion) ) / phiRegionWidth * nBinsPhiRegion_;
-
-  unsigned int etaRegion = (regionIndex - phiRegion) / (phiRegionEdges_.size() - 1);
-  float etaBinOffset = ( 3 + etaRegionEdges_.at(etaRegion) ) / 0.5 * 6;
+  float etaBinOffset = (etaLowEdge + 3) / 0.5 * 6;
 
   return std::pair<unsigned, unsigned>{phiBinOffset, etaBinOffset};
 }
 
-std::pair<double, double> Phase2L1TJetSeedEmulator::regionEtaPhiUpEdges(const unsigned int regionIndex) const {
-  unsigned int phiRegion = regionIndex % (phiRegionEdges_.size() - 1);
-  unsigned int etaRegion = (regionIndex - phiRegion) / (phiRegionEdges_.size() - 1);
-  if (phiRegion == phiRegionEdges_.size() - 1) {
-    return std::pair<double, double>{phiRegionEdges_.at(phiRegion), etaRegionEdges_.at(etaRegion + 1)};
-  } else if (etaRegion == etaRegionEdges_.size() - 1) {
-    return std::pair<double, double>{phiRegionEdges_.at(phiRegion + 1), etaRegionEdges_.at(etaRegion)};
-  }
+std::pair<unsigned, unsigned> Phase2L1TJetSeedEmulator::getCandidateBin(const l1ct::glbeta_t glbEta, const l1ct::glbphi_t glbPhi, double etaLowEdge, double phiLowEdge) const {
+  l1ct::glbeta_t etaOffset = l1ct::Scales::makeGlbEta(etaLowEdge);
+  l1ct::glbphi_t phiOffset = l1ct::Scales::makeGlbPhi(phiLowEdge);
 
-  return std::pair<double, double>{phiRegionEdges_.at(phiRegion + 1), etaRegionEdges_.at(etaRegion + 1)};
-}
-
-std::pair<unsigned, unsigned> Phase2L1TJetSeedEmulator::getCandidateBin(const l1ct::glbeta_t glbEta, const l1ct::glbphi_t glbPhi, const unsigned int regionIndex) const {
-  std::pair<double, double> regionLowEdges = regionEtaPhiLowEdges(regionIndex);
-  l1ct::glbeta_t etaOffset = l1ct::Scales::makeGlbEta(regionLowEdges.second);
-  l1ct::glbphi_t phiOffset = l1ct::Scales::makeGlbPhi(regionLowEdges.first);
+  // Debug printout
+  std::cout << "getCandidateBin calculations:" << std::endl;
+  std::cout << "  glbEta: " << glbEta << ", glbPhi: " << glbPhi << std::endl;
+  std::cout << "  etaOffset: " << etaOffset << ", phiOffset: " << phiOffset << std::endl;
 
   int etaBin = (glbEta - etaOffset) / etaBinSize_ + 1;
   int phiBin = (glbPhi - phiOffset) / phiBinSize_ + 1;
 
   constexpr int nBinsEtaRegionWithTrack = 12;
   constexpr int nBinsEtaRegionEverywhereElse = 6;
-  if (regionLowEdges.second == -2.5 || regionLowEdges.second == 1.5) {
+  if (etaLowEdge == -2.5 || etaLowEdge == 1.5) {
     if (etaBin >= nBinsEtaRegionWithTrack) etaBin = nBinsEtaRegionWithTrack;
   } else if (etaBin >= nBinsEtaRegionEverywhereElse) {
     etaBin = nBinsEtaRegionEverywhereElse;
@@ -274,90 +283,27 @@ std::pair<unsigned, unsigned> Phase2L1TJetSeedEmulator::getCandidateBin(const l1
   if (phiBin >= int(nBinsPhiRegion_)) phiBin = nBinsPhiRegion_;
 
   // Hopefully temporary fix for handling candidates with phi=pi
-  if ( glbPhi == 720 ) phiBin = 1;
+  if (glbPhi == 720) phiBin = 1;
 
+  std::pair<unsigned, unsigned> binOffsets = regionEtaPhiBinOffset(etaLowEdge, phiLowEdge);
 
-  std::pair<unsigned, unsigned> binOffsets = regionEtaPhiBinOffset(regionIndex);
+  // Debug printout
+  std::cout << "  etaBin: " << etaBin << ", phiBin: " << phiBin << std::endl;
+  std::cout << "  binOffsets.first: " << binOffsets.first << ", binOffsets.second: " << binOffsets.second << std::endl;
+
   return std::pair<unsigned, unsigned>{phiBin + binOffsets.first - 1, etaBin + binOffsets.second - 1};
 }
 
-unsigned int Phase2L1TJetSeedEmulator::getRegionIndex(const unsigned int phiRegion, const unsigned int etaRegion) const {
-  return etaRegion * (phiRegionEdges_.size() - 1) + phiRegion;
-}
-
-std::vector<l1ct::PuppiObj> Phase2L1TJetSeedEmulator::emulateEvent(const std::vector<l1ct::PuppiObj>& puppiObjects) {
-  // sort inputs into PF regions
-  std::vector<std::vector<l1ct::PuppiObj>> inputsInRegions = prepareInputsIntoRegions(puppiObjects);
-
-  // Resetting histogram
-  for (auto& row : histogram_) {
-    std::fill(row.begin(), row.end(), 0);
-  }
-  // histogramming the data
-  for (unsigned int iInputRegion = 0; iInputRegion < inputsInRegions.size(); ++iInputRegion) {
-    fillHistogram(histogram_, inputsInRegions[iInputRegion], iInputRegion);
-  }
-
-  // find the seeds
-  const auto& seedsVector = findSeeds(seedPtThreshold_);
-
-  // sort by pt
-  std::vector<l1ct::PuppiObj> sortedSeeds;
-  sortSeeds(seedsVector, sortedSeeds);
-
-  return sortedSeeds;
-}
-
-void Phase2L1TJetSeedEmulator::fillHistogram(std::vector<std::vector<l1ct::pt_t>>& histogram, const std::vector<l1ct::PuppiObj>& puppis, unsigned int regionIndex) {
+void Phase2L1TJetSeedEmulator::fillHistogram(std::vector<std::vector<l1ct::pt_t>>& histogram, const std::vector<l1ct::PuppiObj>& puppis, double etaLowEdge, double phiLowEdge) {
   for (const auto& puppi : puppis) {
-    auto binEtaPhi = getCandidateBin(puppi.hwEta, puppi.hwPhi, regionIndex);
+    std::cout << "Binning candidate : " << puppi.hwPt << " " << puppi.hwEta << " " << puppi.hwPhi << std::endl;
+    auto binEtaPhi = getCandidateBin(puppi.hwEta, puppi.hwPhi, etaLowEdge, phiLowEdge);
+    std::cout << "Got bins : " << binEtaPhi.first << " " << binEtaPhi.second << std::endl;
     histogram[binEtaPhi.second][binEtaPhi.first] += puppi.hwPt;
   }
 }
 
-std::vector<std::vector<l1ct::PuppiObj>> Phase2L1TJetSeedEmulator::prepareInputsIntoRegions(const std::vector<l1ct::PuppiObj>& puppiObjects) {
-  std::vector<std::vector<l1ct::PuppiObj>> inputsInRegions(etaRegionEdges_.size() * (phiRegionEdges_.size() - 1));
-
-  for (const auto& tp : puppiObjects) {
-    if (tp.hwPhi < l1ct::Scales::makeGlbPhi(phiRegionEdges_.front()) || tp.hwPhi >= l1ct::Scales::makeGlbPhi(phiRegionEdges_.back()) ||
-        tp.hwEta < l1ct::Scales::makeGlbEta(etaRegionEdges_.front()) || tp.hwEta >= l1ct::Scales::makeGlbEta(etaRegionEdges_.back())) {
-      continue;
-    }
-
-    // Which phi region does this tp belong to
-    auto it_phi = phiRegionEdges_.begin();
-    it_phi = std::upper_bound(phiRegionEdges_.begin(), phiRegionEdges_.end(), l1ct::Scales::floatPhi(tp.hwPhi)) - 1;
-    if (l1ct::Scales::makeGlbPhi(*(it_phi + 1)) == tp.hwPhi) {
-      it_phi += 1;
-    }
-
-    // Hopefully temporary fix for handling candidates with phi=pi
-    if ( tp.hwPhi == 720 ) {
-      it_phi = phiRegionEdges_.begin();
-    }
-
-    // Which eta region does this tp belong to
-    auto it_eta = etaRegionEdges_.begin();
-    it_eta = std::upper_bound(etaRegionEdges_.begin(), etaRegionEdges_.end(), l1ct::Scales::floatEta(tp.hwEta)) - 1;
-    if (l1ct::Scales::makeGlbEta(*(it_eta + 1)) == tp.hwEta) {
-      it_eta += 1;
-    }
-
-
-    if (it_phi != phiRegionEdges_.end() && it_eta != etaRegionEdges_.end()) {
-      auto phiRegion = it_phi - phiRegionEdges_.begin();
-      auto etaRegion = it_eta - etaRegionEdges_.begin();
-      inputsInRegions[getRegionIndex(phiRegion, etaRegion)].emplace_back(tp);
-    }
-  }
-
-  // Truncate number of inputs in each pf region
-  for (auto& inputs : inputsInRegions) {
-    if (inputs.size() > maxInputsPerRegion_) {
-      inputs.resize(maxInputsPerRegion_);
-    }
-  }
-
-  return inputsInRegions;
+unsigned int Phase2L1TJetSeedEmulator::getRegionIndex(const unsigned int phiRegion, const unsigned int etaRegion) const {
+  return etaRegion * (phiRegionEdges_.size() - 1) + phiRegion;
 }
 
