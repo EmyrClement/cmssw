@@ -65,13 +65,6 @@ L1SCJetEmu::mass2_t L1SCJetEmu::jetMass_HW(const std::vector<Particle>& parts) c
       init_trig_lut<eventrig_t, hwEtaPhi_steps>([](float x) -> eventrig_t { return std::cos(x); });
   static std::array<oddtrig_t, hwEtaPhi_steps> sin_lut =
       init_trig_lut<oddtrig_t, hwEtaPhi_steps>([](float x) -> oddtrig_t { return std::sin(x); });
-  // This particular value of phi, with the particular oddtrig_t data type is different when running in CMSSW and with vitis_hls
-  // Even though the exact same code is used in the two
-  // For now, enforce this value to the one that is used in CMSSW
-  // float x = l1ct::Scales::floatEta((etaphi_t)138);
-  // std::cout << std::setprecision(15) << std::sin(x) << " " << eventrig_t(std::sin(x)) << " " << oddtrig_t(std::sin(x)) << std::endl;
-  // std::cout << "sin_lut[138]: " << sin_lut[138] << std::endl;
-  sin_lut[138] = 0.56640625;
   static std::array<oddtrig_t, hwEtaPhi_steps> sinh_lut =
       init_trig_lut<oddtrig_t, hwEtaPhi_steps>([](float x) -> oddtrig_t { return std::sinh(x); });
 
