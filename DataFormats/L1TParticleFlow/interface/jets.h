@@ -15,10 +15,10 @@ namespace l1ct {
     glbphi_t hwPhi;
     z0_t hwZ0;
     // b_tag_score_t hwBtagScore;
-    mass2_t hwMass;  // total bitwidth 77
+    mass2_t hwMassSq;
 
     inline bool operator==(const Jet &other) const {
-      return hwPt == other.hwPt && hwEta == other.hwEta && hwPhi == other.hwPhi && hwMass == other.hwMass;
+      return hwPt == other.hwPt && hwEta == other.hwEta && hwPhi == other.hwPhi && hwMassSq == other.hwMassSq;
     }
 
     inline bool operator>(const Jet &other) const { return hwPt > other.hwPt; }
@@ -30,7 +30,7 @@ namespace l1ct {
       hwPhi = 0;
       hwZ0 = 0;
       // hwBtagScore = 0;
-      hwMass = 0;
+      hwMassSq = 0;
     }
 
     int intPt() const { return Scales::intPt(hwPt); }
@@ -41,7 +41,7 @@ namespace l1ct {
     float floatPhi() const { return Scales::floatPhi(hwPhi); }
     float floatZ0() const { return Scales::floatZ0(hwZ0); }
     // float floatBtagScore() const { return Scales::floatBtagScore(hwBtagScore); }
-    float floatMass() const { return Scales::floatMass(hwMass); }
+    float floatMass() const { return Scales::floatMass(hwMassSq); }
 
     // static const int BITWIDTH = pt_t::width + glbeta_t::width + glbphi_t::width + z0_t::width + b_tag_score_t::width + mass2_t::width;
     static const int BITWIDTH = pt_t::width + glbeta_t::width + glbphi_t::width + z0_t::width + mass2_t::width;
@@ -53,7 +53,7 @@ namespace l1ct {
       pack_into_bits(ret, start, hwPhi);
       pack_into_bits(ret, start, hwZ0);
       // pack_into_bits(ret, start, hwBtagScore);
-      pack_into_bits(ret, start, hwMass);
+      pack_into_bits(ret, start, hwMassSq);
       return ret;
     }
 
@@ -78,7 +78,7 @@ namespace l1ct {
       unpack_from_bits(src, start, hwPhi);
       unpack_from_bits(src, start, hwZ0);
       // unpack_from_bits(src, start, hwBtagScore);
-      unpack_from_bits(src, start, hwMass);
+      unpack_from_bits(src, start, hwMassSq);
     }
 
     inline static Jet unpack(const std::array<uint64_t, 2> &src) {
@@ -108,9 +108,19 @@ namespace l1ct {
       j.v3.phi = CTtoGT_phi(hwPhi);
       j.v3.eta = CTtoGT_eta(hwEta);
       j.z0(l1ct::z0_t::width - 1, 0) = hwZ0(l1ct::z0_t::width - 1, 0);
-      // j.hwBtagScore = hwBtagScore;
       j.hwBtagScore = 0;
-      j.hwMass = CTtoGT_mass(hwMass);
+      return j;
+    }
+
+    l1gt::WideJet toGTWide() const {
+      l1gt::WideJet j;
+      j.valid = hwPt != 0;
+      j.v3.pt = CTtoGT_pt(hwPt);
+      j.v3.phi = CTtoGT_phi(hwPhi);
+      j.v3.eta = CTtoGT_eta(hwEta);
+      j.z0(l1ct::z0_t::width - 1, 0) = hwZ0(l1ct::z0_t::width - 1, 0);
+      j.hwNProngScore = 0;
+      j.hwMassSq = CTtoGT_massSq(hwMassSq);
       return j;
     }
   };

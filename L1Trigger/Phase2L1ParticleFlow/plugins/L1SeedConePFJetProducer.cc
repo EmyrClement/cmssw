@@ -33,6 +33,7 @@ private:
   /// ///////////////// ///
 
   float coneSize;
+  bool wideConeJet;
   unsigned nJets;
   bool HW;
   bool debug;
@@ -57,6 +58,7 @@ private:
 
 L1SeedConePFJetProducer::L1SeedConePFJetProducer(const edm::ParameterSet& cfg)
     : coneSize(cfg.getParameter<double>("coneSize")),
+      wideConeJet(cfg.getParameter<bool>("wideConeJet")),
       nJets(cfg.getParameter<unsigned>("nJets")),
       HW(cfg.getParameter<bool>("HW")),
       debug(cfg.getParameter<bool>("debug")),
@@ -245,12 +247,19 @@ std::vector<l1t::PFJet> L1SeedConePFJetProducer::convertHWToEDM(
     l1t::PFJet edmJet(l1gt::Scales::floatPt(gtJet.v3.pt),
                       l1gt::Scales::floatEta(gtJet.v3.eta),
                       l1gt::Scales::floatPhi(gtJet.v3.phi),
-                      l1gt::Scales::floatMass(gtJet.hwMass),
+                      0,
                       gtJet.v3.pt.V,
                       gtJet.v3.eta.V,
                       gtJet.v3.phi.V);
     edmJet.setEncodedJet(l1t::PFJet::HWEncoding::CT, jet.pack());
-    edmJet.setEncodedJet(l1t::PFJet::HWEncoding::GT, jet.toGT().pack());
+
+    if (wideConeJet) {
+      edmJet.setEncodedJet(l1t::PFJet::HWEncoding::GT, jet.toGTWide().pack());
+      edmJet.setMass(std::sqrt(l1gt::Scales::floatMassSq(jet.toGTWide().hwMassSq)));
+    } else {
+      edmJet.setEncodedJet(l1t::PFJet::HWEncoding::GT, jet.toGT().pack());
+    }
+
     // get back the references to the constituents
     std::vector<edm::Ptr<l1t::PFCandidate>> constituents;
     std::for_each(jet.constituents.begin(), jet.constituents.end(), [&](auto constituent) {
@@ -266,6 +275,7 @@ void L1SeedConePFJetProducer::fillDescriptions(edm::ConfigurationDescriptions& d
   desc.add<edm::InputTag>("L1PFObjects", edm::InputTag("l1tLayer1", "Puppi"));
   desc.add<uint32_t>("nJets", 16);
   desc.add<double>("coneSize", 0.4);
+  desc.add<bool>("wideConeJet", false);
   desc.add<bool>("HW", false);
   desc.add<bool>("debug", false);
   desc.add<bool>("doCorrections", false);

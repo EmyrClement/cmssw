@@ -133,13 +133,13 @@ L1SCJetEmu::Jet L1SCJetEmu::makeJet_HW(const std::vector<Particle>& parts, const
 
   std::vector<Particle> truncated =
       sortConstituents(parts, seed);  // sort the constituents by pt and truncate to NCONSTITS
-  mass2_t mass = L1SCJetEmu::jetMass_HW(truncated);
+  mass2_t massSq = L1SCJetEmu::jetMass_HW(truncated);
 
   Jet jet;
   jet.hwPt = pt;
   jet.hwEta = eta;
   jet.hwPhi = phi;
-  jet.hwMass = mass;
+  jet.hwMassSq = massSq;
   jet.constituents = parts;
   // jet.constituents = truncated;  // store the truncated, sorted NCONSTITSFW sparse array of constituents
 

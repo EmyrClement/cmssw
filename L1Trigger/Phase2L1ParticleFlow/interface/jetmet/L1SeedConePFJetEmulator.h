@@ -24,8 +24,10 @@ public:
   typedef ap_fixed<18, 23> detaphi2_t;   // Type for deta^2 & dphi^2
   typedef ap_fixed<22, 22> pt_etaphi_t;  // Type for product of pt with deta & dphi
 
-  typedef ap_ufixed<13, 1, AP_RND, AP_SAT> eventrig_t;  // stores values between 0 and 2, - 0 bit for sign, - 1 bit for integer, leaves 12 for frac
-  typedef ap_fixed<13, 1, AP_RND, AP_SAT> oddtrig_t;  // stores values between -1 and 1, 13 - 1 bit for sign, - 0 bits for integer, leaves 12 for frac
+  typedef ap_ufixed<13, 1, AP_RND, AP_SAT>
+      eventrig_t;  // stores values between 0 and 2, - 0 bit for sign, - 1 bit for integer, leaves 12 for frac
+  typedef ap_fixed<13, 1, AP_RND, AP_SAT>
+      oddtrig_t;  // stores values between -1 and 1, 13 - 1 bit for sign, - 0 bits for integer, leaves 12 for frac
 
   // typedef l1ct::mass_t mass_t;  // stores values up to ~1 TeV, 18 bits - 0 for sign, - 10 for integer, 14 total bits improves performance
   typedef l1ct::mass2_t mass2_t;
@@ -157,11 +159,11 @@ private:
 
   template <typename lut_T, int N>
   static std::array<lut_T, N> init_trig_lut(lut_T (*func)(float)) {
-      std::array<lut_T, N> lut;
-      for (int hwEtaPhi = 0; hwEtaPhi < N; hwEtaPhi++) {
-          lut[hwEtaPhi] = func(hwEtaPhi * l1ct::Scales::ETAPHI_LSB);
-      }
-      return lut;
+    std::array<lut_T, N> lut;
+    for (int hwEtaPhi = 0; hwEtaPhi < N; hwEtaPhi++) {
+      lut[hwEtaPhi] = func(hwEtaPhi * l1ct::Scales::ETAPHI_LSB);
+    }
+    return lut;
   }
 
   static detaphi_t deltaPhi(Particle a, Particle b);
