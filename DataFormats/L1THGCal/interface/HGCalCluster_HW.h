@@ -34,7 +34,7 @@ namespace l1thgcfirmware {
   
   namespace Scales {
     constexpr float ET_LSB = 1./ 256; //1024;
-    constexpr float ET_HGCALtoL1_SCALE = 1. / 64; //256;
+    constexpr float ET_HGCALtoL1_SCALE = 1./256 ;// 64; //256;
     constexpr float ET_L1_LSB = 0.25;
 
     constexpr int INTPHI_PI = 720;
@@ -82,6 +82,7 @@ namespace l1thgcfirmware {
     }
 
     inline eFraction_t makeL1EFraction(float num, float denom) {
+      if(denom==0) return 0;
       float frac = num/denom;
       frac = round( ( round(frac * (1 << 12)) / ( 1 << 12 ) ) * 256 );  // Firmware accurate calculation
       if ( frac >= 256. ) frac = 255.; 
@@ -308,6 +309,43 @@ namespace l1thgcfirmware {
       bool qualFracCoreCE_E = e_em_core != 0x3FFFFF && e_em != 0x3FFFFF;
       bool qualFracEarlyCE_H = e_h_early != 0x3FFFFF && e != 0x3FFFFF;
       qualFlags = (ap_uint<1>(nominalPhi), ap_uint<1>(saturatedPhi), ap_uint<1>(shapeQuality), ap_uint<1>(qualFracEarlyCE_H), ap_uint<1>(qualFracCoreCE_E), ap_uint<1>(qualFracCE_E), ap_uint<1>(saturatedTC) );
+    }
+
+    inline void print() {
+
+      uint64_t first_word = pack_firstWord();
+      uint64_t second_word = pack_secondWord();
+      uint64_t third_word = pack_thirdWord();
+      std::cout.fill('0');
+      std::cout << "HGCalCluster_HW::print "
+		<< std::endl << std::hex
+		<<"FirstWord:: E_T[14,0-13] : "<< e
+		<< ", E_T_EM[14,14-27] : " << e_em
+		<< ", gctBits[4,28-31] : " << gctBits
+		<< ", fractionInCE_E[8,32-39] : "<< fractionInCE_E
+		<< ", fractionInCoreCE_E[8,40-47] : "<< fractionInCoreCE_E
+		<< ", fractionInEarlyCE_E[8,48-55] : "<< fractionInEarlyCE_E
+		<< ", firstLayer[6,56-61] : "<< firstLayer
+		<< std::endl
+		<< "SecondWord:: w_eta[10,0-9] : " << w_eta
+		<< ", w_phi[9,10-18] : " << w_phi
+		<< ", w_z[12,19-30] : " << w_z
+		<< ", nTC[10,32-41] : " << nTC
+		<< ", qualFlags[7,42-48] : " << qualFlags
+		<< std::endl
+		<< "ThirdWord:: sigma_E[7,0-6] : " << sigma_E
+		<< ", lastLayer[6,7-12] : " << lastLayer
+		<< ", showerLength[6,13-18] : " << showerLength
+		<< ", sigma_z[7,32-38] : " << sigma_z
+		<< ", sigma_phi[7,39-45] : " << sigma_phi
+		<< ", coreShowerLength[6,46-51] : " << coreShowerLength
+		<< ", sigma_eta[5,52-56] : " << sigma_eta
+		<< ", sigma_roz[7,57-63] : " << sigma_roz
+		<< std::endl
+		<< "First word : 0x" << std::hex << std::setw(16) << first_word << std::dec << std::endl
+		<< "Second word : 0x" << std::hex << std::setw(16) << second_word << std::dec << std::endl
+		<< "Third word : 0x" << std::hex << std::setw(16) << third_word << std::dec << std::endl;
+      std::cout.fill(' ');
     }
   };
 
