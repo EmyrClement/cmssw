@@ -8,21 +8,21 @@ L1TSC4NGJetID::L1TSC4NGJetID(const std::shared_ptr<hls4mlEmulator::Model> model,
   fNParticles_ = iNParticles;
   isDebugEnabled_ = debug;
 
-  fPt_ = std::make_unique<float[]>(fNParticles_);
-  fPt_rel_ = std::make_unique<float[]>(fNParticles_);
-  fDEta_ = std::make_unique<float[]>(fNParticles_);
-  fDPhi_ = std::make_unique<float[]>(fNParticles_);
-  fPt_log_ = std::make_unique<float[]>(fNParticles_);
-  fMass_ = std::make_unique<float[]>(fNParticles_);
-  fZ0_ = std::make_unique<float[]>(fNParticles_);
-  fDxy_ = std::make_unique<float[]>(fNParticles_);
-  fIs_filled_ = std::make_unique<int[]>(fNParticles_);
-  fPuppi_weight_ = std::make_unique<float[]>(fNParticles_);
-  fEmID_ = std::make_unique<int[]>(fNParticles_);
-  fQuality_ = std::make_unique<float[]>(fNParticles_);
+  fPt_ = std::make_unique<inputtype[]>(fNParticles_);
+  fPt_rel_ = std::make_unique<inputtype[]>(fNParticles_);
+  fDEta_ = std::make_unique<inputtype[]>(fNParticles_);
+  fDPhi_ = std::make_unique<inputtype[]>(fNParticles_);
+  fPt_log_ = std::make_unique<inputtype[]>(fNParticles_);
+  fMass_ = std::make_unique<inputtype[]>(fNParticles_);
+  fZ0_ = std::make_unique<inputtype[]>(fNParticles_);
+  fDxy_ = std::make_unique<inputtype[]>(fNParticles_);
+  fIs_filled_ = std::make_unique<inputtype[]>(fNParticles_);
+  fPuppi_weight_ = std::make_unique<inputtype[]>(fNParticles_);
+  fEmID_ = std::make_unique<inputtype[]>(fNParticles_);
+  fQuality_ = std::make_unique<inputtype[]>(fNParticles_);
 
-  fId_ = std::make_unique<int[]>(fNParticles_);
-  fCharge_ = std::make_unique<int[]>(fNParticles_);
+  fId_ = std::make_unique<inputtype[]>(fNParticles_);
+  fCharge_ = std::make_unique<inputtype[]>(fNParticles_);
 }
 
 void L1TSC4NGJetID::setNNVectorVar() {
@@ -32,20 +32,20 @@ void L1TSC4NGJetID::setNNVectorVar() {
   }
 
   for (int i0 = 0; i0 < fNParticles_; i0++) {
-    NNvectorVar_.push_back(fPt_.get()[i0]);                              // pt
-    NNvectorVar_.push_back(fPt_rel_.get()[i0]);                          //pT as a fraction of jet pT
-    NNvectorVar_.push_back(fPt_log_.get()[i0]);                          // pt log
-    NNvectorVar_.push_back(fDEta_.get()[i0]);                            //dEta from jet axis
-    NNvectorVar_.push_back(fDPhi_.get()[i0]);                            //dPhi from jet axis
-    NNvectorVar_.push_back(fMass_.get()[i0]);                            // Mass
-    NNvectorVar_.push_back(fId_.get()[i0] == l1t::PFCandidate::Photon);  // Photon
-    NNvectorVar_.push_back(fId_.get()[i0] == l1t::PFCandidate::Electron && fCharge_.get()[i0] > 0);       // Positron
-    NNvectorVar_.push_back(fId_.get()[i0] == l1t::PFCandidate::Electron && fCharge_.get()[i0] < 0);       // Electron
-    NNvectorVar_.push_back(fId_.get()[i0] == l1t::PFCandidate::Muon && fCharge_.get()[i0] > 0);           // Anti-muon
-    NNvectorVar_.push_back(fId_.get()[i0] == l1t::PFCandidate::Muon && fCharge_.get()[i0] < 0);           // Muon
-    NNvectorVar_.push_back(fId_.get()[i0] == l1t::PFCandidate::NeutralHadron);                            // Neutral Had
-    NNvectorVar_.push_back(fId_.get()[i0] == l1t::PFCandidate::ChargedHadron && fCharge_.get()[i0] > 0);  // Anti-Pion
-    NNvectorVar_.push_back(fId_.get()[i0] == l1t::PFCandidate::ChargedHadron && fCharge_.get()[i0] < 0);  // Pion
+    NNvectorVar_.push_back(fPt_.get()[i0]);                               // pt
+    NNvectorVar_.push_back(fPt_rel_.get()[i0]);                           // pT as a fraction of jet pT
+    NNvectorVar_.push_back(fPt_log_.get()[i0]);                           // pt log
+    NNvectorVar_.push_back(fDEta_.get()[i0]);                             // dEta from jet axis
+    NNvectorVar_.push_back(fDPhi_.get()[i0]);                             // dPhi from jet axis
+    NNvectorVar_.push_back(fMass_.get()[i0]);                             // Mass
+    NNvectorVar_.push_back(inputtype(fId_.get()[i0] == l1ct::ParticleID::PHOTON));   // Photon
+    NNvectorVar_.push_back(inputtype(fId_.get()[i0] == l1ct::ParticleID::ELEPLUS));  // Positron
+    NNvectorVar_.push_back(inputtype(fId_.get()[i0] == l1ct::ParticleID::ELEMINUS)); // Electron
+    NNvectorVar_.push_back(inputtype(fId_.get()[i0] == l1ct::ParticleID::MUPLUS));   // Anti-muon
+    NNvectorVar_.push_back(inputtype(fId_.get()[i0] == l1ct::ParticleID::MUMINUS));  // Muon
+    NNvectorVar_.push_back(inputtype(fId_.get()[i0] == l1ct::ParticleID::HADZERO));  // Neutral Had
+    NNvectorVar_.push_back(inputtype(fId_.get()[i0] == l1ct::ParticleID::HADPLUS));  // Anti-Pion
+    NNvectorVar_.push_back(inputtype(fId_.get()[i0] == l1ct::ParticleID::HADMINUS)); // Pion
     NNvectorVar_.push_back(fZ0_.get()[i0]);                                                               // z0
     NNvectorVar_.push_back(fDxy_.get()[i0]);                                                              // dxy
     NNvectorVar_.push_back(fIs_filled_.get()[i0]);                                                        // isfilled
@@ -181,17 +181,22 @@ std::vector<float> L1TSC4NGJetID::computeFixed(const l1t::PFJet &iJet, bool useR
   });
 
   l1ct::Jet ctJet = l1ct::Jet::unpack(iJet.getHWJetCT());
-  float jet_pt_ = float(ctJet.hwPt);
-  float jet_eta_ = float(ctJet.hwEta);
-  float jet_phi_ = float(ctJet.hwPhi);
+  inputtype jet_pt_ = inputtype(ctJet.hwPt);
+  inputtype jet_eta_ = inputtype(ctJet.hwEta);
+  inputtype jet_phi_ = inputtype(ctJet.hwPhi);
 
   for (unsigned int i0 = 0; i0 < iParts.size(); i0++) {
     if (i0 >= (unsigned int)fNParticles_)
       break;
-    fPt_.get()[i0] = iParts[i0]->hwPt();
-    fPt_rel_.get()[i0] = iParts[i0]->hwPt() / jet_pt_;
+    l1ct::PuppiObj puppicand = l1ct::PuppiObj::unpack(iParts[i0]->encodedPuppi64());
+    fPt_.get()[i0] = inputtype(puppicand.hwPt);
 
-    L1SCJetEmu::detaphi_t dphi(iParts[i0]->hwPhi() - jet_phi_);
+    constexpr int INV_LUT_SIZE = 256;
+    inputtype inv_jet_pt = L1TSC4NGJet::invert_with_shift<inputtype, inputtype, INV_LUT_SIZE>(jet_pt_);
+
+    fPt_rel_.get()[i0] = inputtype(puppicand.hwPt) * inv_jet_pt;
+
+    L1SCJetEmu::detaphi_t dphi(puppicand.hwPhi - jet_phi_);
     // phi wrap
     L1SCJetEmu::detaphi_t dphi0 = dphi > L1SCJetEmu::detaphi_t(l1ct::Scales::INTPHI_PI)
                                       ? L1SCJetEmu::detaphi_t(l1ct::Scales::INTPHI_TWOPI - dphi)
@@ -199,34 +204,34 @@ std::vector<float> L1TSC4NGJetID::computeFixed(const l1t::PFJet &iJet, bool useR
     L1SCJetEmu::detaphi_t dphi1 = dphi < L1SCJetEmu::detaphi_t(-l1ct::Scales::INTPHI_PI)
                                       ? L1SCJetEmu::detaphi_t(l1ct::Scales::INTPHI_TWOPI + dphi)
                                       : L1SCJetEmu::detaphi_t(dphi);
-    L1SCJetEmu::detaphi_t dphiw = dphi > L1SCJetEmu::detaphi_t(0) ? dphi0 : dphi1;
+    inputtype dphiw = inputtype(dphi > L1SCJetEmu::detaphi_t(0) ? dphi0 : dphi1);
 
-    fDEta_.get()[i0] = jet_eta_ - float(iParts[i0]->hwEta());
+    fDEta_.get()[i0] = jet_eta_ - inputtype(puppicand.hwEta);
     fDPhi_.get()[i0] = dphiw;
 
-    fPt_log_.get()[i0] = std::log(iParts[i0]->hwPt());
+    fPt_log_.get()[i0] = inputtype(std::log(float(puppicand.hwPt)));
 
     float massCand = 0.13f;
-    if (abs(iParts[i0]->charge())) {
-      if ((iParts[i0]->id() == l1t::PFCandidate::Muon)) {
+    if (abs(puppicand.hwId.charged())) {
+      if ((puppicand.hwId.bits == l1t::PFCandidate::Muon)) {
         massCand = 0.105;
-      } else if ((iParts[i0]->id() == l1t::PFCandidate::Electron)) {
+      } else if ((puppicand.hwId.bits == l1t::PFCandidate::Electron)) {
         massCand = 0.005;
       }
     } else {
-      massCand = iParts[i0]->id() == l1t::PFCandidate::Photon ? 0.0 : 0.5;
+      massCand = puppicand.hwId.bits == l1t::PFCandidate::Photon ? 0.0 : 0.5;
     }
 
-    fMass_.get()[i0] = massCand;
-    fZ0_.get()[i0] = iParts[i0]->hwZ0();
-    fDxy_.get()[i0] = iParts[i0]->hwDxy();
-    fIs_filled_.get()[i0] = 1;
-    fPuppi_weight_.get()[i0] = iParts[i0]->hwPuppiWeight();
-    fEmID_.get()[i0] = iParts[i0]->hwEmID();
-    fQuality_.get()[i0] = iParts[i0]->hwTkQuality();
+    fMass_.get()[i0] = inputtype(massCand);
+    fZ0_.get()[i0] = puppicand.hwId.charged() ? inputtype(puppicand.hwZ0() * l1ct::Scales::Z0_LSB) : inputtype(0);
+    fDxy_.get()[i0] = puppicand.hwId.charged() ? inputtype(puppicand.hwDxy() * l1ct::Scales::DXY_LSB) : inputtype(0);
+    fIs_filled_.get()[i0] = inputtype(1);
+    fPuppi_weight_.get()[i0] = puppicand.hwId.neutral() ? inputtype(puppicand.hwPuppiW()) : inputtype(0); 
+    fEmID_.get()[i0] = puppicand.hwId.neutral() ? inputtype(puppicand.hwEmID()) : inputtype(0);
+    fQuality_.get()[i0] = puppicand.hwId.charged() ? inputtype(puppicand.hwTkQuality()) : inputtype(0);
 
-    fCharge_.get()[i0] = iParts[i0]->charge();
-    fId_.get()[i0] = iParts[i0]->id();
+    fCharge_.get()[i0] = inputtype(puppicand.hwId.charged());
+    fId_.get()[i0] = inputtype(puppicand.hwId.bits);
   }
   setNNVectorVar();
   return EvaluateNNFixed();

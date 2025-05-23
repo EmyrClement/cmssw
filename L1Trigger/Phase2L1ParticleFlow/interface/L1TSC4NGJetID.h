@@ -12,6 +12,67 @@
 #include "ap_fixed.h"
 #include "hls4ml/emulator.h"
 
+namespace L1TSC4NGJet{
+
+  constexpr int ceillog2(int x){
+    return (x <= 2) ? 1 : 1 + ceillog2((x+1) / 2);
+  }
+
+  template<class data_T, int N>
+  inline float real_val_from_idx(unsigned i){
+      // Treat the index as the top N bits
+      static constexpr int NB = ceillog2(N); // number of address bits for table
+      data_T x(0);
+      // The MSB of 1 is implicit in the table
+      x[x.width-1] = 1;
+      // So we can use the next NB bits for real data
+      x(x.width-2, x.width-NB-1) = i;
+      return (float) x;
+  }
+
+  template<class data_T, int N>
+  inline unsigned idx_from_real_val(data_T x){
+      // Slice the top N bits to get an index into the table
+      static constexpr int NB = ceillog2(N); // number of address bits for table
+      // Slice the top-1 NB bits of the value
+      // the MSB of '1' is implicit, so only slice below that
+      ap_uint<NB> y = x(x.width-2, x.width-NB-1);
+      return (unsigned) y(NB-1, 0);
+  }
+
+
+  template<class data_T, class table_T, int N>
+  void init_invert_table(table_T table_out[N]){
+    // The template data_T is the data type used to address the table
+    for(unsigned i = 0; i < N; i++){
+        float x = real_val_from_idx<data_T, N>(i);
+        table_T inv_x = 1 / x;
+        table_out[i] = inv_x;
+    }
+  }
+
+  template<class in_t, class table_t, int N>
+  table_t invert_with_shift(in_t in){
+    table_t inv_table[N];
+    init_invert_table<in_t, table_t, N>(inv_table);
+
+    // find the first '1' in the denominator
+    int msb = 0;
+    for(int b = 0; b < in.width; b++){
+        if(in[b]) msb = b;
+    }
+    // shift up the denominator such that the left-most bit (msb) is '1'
+    in_t in_shifted = in << (in.width-msb-1);
+    // lookup the inverse of the shifted input
+    int idx = idx_from_real_val<in_t,N>(in_shifted);
+    table_t inv_in = inv_table[idx];
+    // shift the output back
+    table_t out = inv_in << (in.width-msb-1);
+    return out;
+}
+
+}
+
 class L1TSC4NGJetID {
 public:
   L1TSC4NGJetID(const std::shared_ptr<hls4mlEmulator::Model> model, int iNParticles, bool debug);
@@ -28,21 +89,21 @@ public:
 private:
   std::vector<inputtype> NNvectorVar_;
   int fNParticles_;
-  unique_ptr<float[]> fPt_;
-  unique_ptr<float[]> fPt_rel_;
-  unique_ptr<float[]> fDEta_;
-  unique_ptr<float[]> fDPhi_;
-  unique_ptr<float[]> fPt_log_;
-  unique_ptr<float[]> fMass_;
-  unique_ptr<float[]> fZ0_;
-  unique_ptr<float[]> fDxy_;
-  unique_ptr<int[]> fIs_filled_;
-  unique_ptr<float[]> fPuppi_weight_;
-  unique_ptr<int[]> fEmID_;
-  unique_ptr<float[]> fQuality_;
+  unique_ptr<inputtype[]> fPt_;
+  unique_ptr<inputtype[]> fPt_rel_;
+  unique_ptr<inputtype[]> fDEta_;
+  unique_ptr<inputtype[]> fDPhi_;
+  unique_ptr<inputtype[]> fPt_log_;
+  unique_ptr<inputtype[]> fMass_;
+  unique_ptr<inputtype[]> fZ0_;
+  unique_ptr<inputtype[]> fDxy_;
+  unique_ptr<inputtype[]> fIs_filled_;
+  unique_ptr<inputtype[]> fPuppi_weight_;
+  unique_ptr<inputtype[]> fEmID_;
+  unique_ptr<inputtype[]> fQuality_;
 
-  unique_ptr<int[]> fCharge_;
-  unique_ptr<int[]> fId_;
+  unique_ptr<inputtype[]> fCharge_;
+  unique_ptr<inputtype[]> fId_;
   std::shared_ptr<hls4mlEmulator::Model> modelRef_;
 
   bool isDebugEnabled_;
