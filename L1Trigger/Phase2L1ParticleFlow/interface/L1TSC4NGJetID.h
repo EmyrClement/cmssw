@@ -71,6 +71,36 @@ namespace L1TSC4NGJet{
     return out;
 }
 
+template<class t>
+t candidate_mass(l1ct::PuppiObj puppicand) {
+  // Define lookup table
+  static const t PION_MASS = t(0.13);
+  static const t PHOTON_MASS = t(0.0);
+  static const t ELECTRON_MASS = t(0.005);
+  static const t MUON_MASS = t(0.105);
+  static const t K_MASS = t(0.5);
+
+  // Default to pion mass
+  t massCand = PION_MASS;
+
+  if (puppicand.hwId.bits == l1ct::ParticleID::PHOTON) {
+    massCand = PHOTON_MASS;
+  }
+  else if (puppicand.hwId.bits == l1ct::ParticleID::ELEPLUS || 
+           puppicand.hwId.bits == l1ct::ParticleID::ELEMINUS) {
+    massCand = ELECTRON_MASS;
+  }
+  else if (puppicand.hwId.bits == l1ct::ParticleID::MUMINUS || 
+           puppicand.hwId.bits == l1ct::ParticleID::MUPLUS) {
+    massCand = MUON_MASS;
+  }
+  else if (puppicand.hwId.bits == l1ct::ParticleID::HADZERO) {
+    massCand = K_MASS;
+  }
+
+  return massCand;
+}
+
 }
 
 class L1TSC4NGJetID {

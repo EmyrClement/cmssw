@@ -210,19 +210,10 @@ std::vector<float> L1TSC4NGJetID::computeFixed(const l1t::PFJet &iJet, bool useR
     fDPhi_.get()[i0] = dphiw;
 
     fPt_log_.get()[i0] = inputtype(std::log(float(puppicand.hwPt)));
-
-    float massCand = 0.13f;
-    if (abs(puppicand.hwId.charged())) {
-      if ((puppicand.hwId.bits == l1t::PFCandidate::Muon)) {
-        massCand = 0.105;
-      } else if ((puppicand.hwId.bits == l1t::PFCandidate::Electron)) {
-        massCand = 0.005;
-      }
-    } else {
-      massCand = puppicand.hwId.bits == l1t::PFCandidate::Photon ? 0.0 : 0.5;
-    }
-
+   
+    inputtype massCand =  L1TSC4NGJet::candidate_mass<inputtype>(puppicand);    
     fMass_.get()[i0] = inputtype(massCand);
+
     fZ0_.get()[i0] = puppicand.hwId.charged() ? inputtype(puppicand.hwZ0() * l1ct::Scales::Z0_LSB) : inputtype(0);
     fDxy_.get()[i0] = puppicand.hwId.charged() ? inputtype(puppicand.hwDxy() * l1ct::Scales::DXY_LSB) : inputtype(0);
     fIs_filled_.get()[i0] = inputtype(1);
