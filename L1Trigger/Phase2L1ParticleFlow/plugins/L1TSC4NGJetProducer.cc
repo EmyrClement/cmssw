@@ -78,12 +78,16 @@ void L1TSC4NGJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSe
       ctHWTaggedJet.clear();
       continue;
     }
-    std::vector<float> JetScore_float = fJetId_->computeFixed(srcjet, fUseRawPt_);
+    L1TSC4NGJetID::outputpairtype JetModel_output = fJetId_->computeFixed(srcjet);
+    std::vector<float> JetScore_float;
     for (unsigned i = 0; i < classes_.size(); i++) {
-      ctHWTaggedJet.hwTagScores[i] = JetScore_float[i];
+      ctHWTaggedJet.hwTagScores[i] = JetModel_output.second[i];
+      JetScore_float.push_back((float)JetModel_output.second[i]);
     }
-    float PtCorrection_ = JetScore_float[classes_.size()];
-    ctHWTaggedJet.hwPt = (l1ct::pt_t)((float)ctHWTaggedJet.hwPt * PtCorrection_);
+    L1TSC4NGJetID::output_regression_type PtCorrection_ = JetModel_output.first[0];
+    L1TSC4NGJetID::output_regression_type jetPt = ctHWTaggedJet.hwPt;
+    L1TSC4NGJetID::output_regression_type tempPt = ctHWTaggedJet.hwPt * PtCorrection_;
+    ctHWTaggedJet.hwPt = l1ct::pt_t(tempPt);
     l1gt::Jet gtHWTaggedJet = ctHWTaggedJet.toGT();
     // TODO set the regressed pT instead of the srcjet pt
     l1t::PFJet edmTaggedJet(srcjet.pt(),
@@ -100,6 +104,7 @@ void L1TSC4NGJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSe
     std::for_each(srcjet.constituents().begin(), srcjet.constituents().end(), [&](auto constituent) {
       edmTaggedJet.addConstituent(constituent);
     });
+    
     edmTaggedJet.addTagScores(JetScore_float, classes_, PtCorrection_);
     taggedJets.push_back(edmTaggedJet);
   }

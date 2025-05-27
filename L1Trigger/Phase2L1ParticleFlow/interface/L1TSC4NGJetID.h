@@ -108,13 +108,20 @@ public:
   L1TSC4NGJetID(const std::shared_ptr<hls4mlEmulator::Model> model, int iNParticles, bool debug);
 
   typedef ap_fixed<24, 12, AP_RND, AP_SAT, 0> inputtype;
+
   typedef std::array<ap_ufixed<24, 12, AP_RND, AP_SAT, 0>, 8> classtype;
   typedef std::array<ap_fixed<16, 6>, 1> regressiontype;
   typedef std::pair<regressiontype, classtype> pairtype;
 
+  // Intermediate output type to allow full precision multiplication of jet pt by the ratio
+  typedef ap_ufixed<22, 12, AP_TRN, AP_SAT> output_regression_type;
+  // Intermediate output type for classification score to be loaded into jet word
+  typedef std::array<l1ct::jet_tag_score_t,8> output_class_type;
+  typedef std::pair<regressiontype,output_class_type> outputpairtype; 
+
   void setNNVectorVar();
-  std::vector<float> EvaluateNNFixed();
-  std::vector<float> computeFixed(const l1t::PFJet &iJet, bool useRawPt);
+  outputpairtype EvaluateNNFixed();
+  outputpairtype computeFixed(const l1t::PFJet &iJet);
 
 private:
   std::vector<inputtype> NNvectorVar_;

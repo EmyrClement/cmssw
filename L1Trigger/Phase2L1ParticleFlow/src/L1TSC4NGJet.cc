@@ -118,7 +118,7 @@ void L1TSC4NGJetID::setNNVectorVar() {
   }
 }
 
-std::vector<float> L1TSC4NGJetID::EvaluateNNFixed() {
+L1TSC4NGJetID::outputpairtype L1TSC4NGJetID::EvaluateNNFixed() {
   const int NInputs = 320;
   classtype classresult;
   regressiontype regressionresult;
@@ -138,26 +138,33 @@ std::vector<float> L1TSC4NGJetID::EvaluateNNFixed() {
   modelRef_->predict();
   modelRef_->read_result(&modelResult);
 
-  std::vector<float> modelResult_;
+  outputpairtype modelResult_forOutput;
   if (isDebugEnabled_) {
     LogDebug("L1TSC4NGJetID") << "\n ===== Jet ID Output Score =====" << std::endl;
   }
   for (unsigned int i = 0; i < 8; i++) {
-    modelResult_.push_back(modelResult.second[i].to_float());
+    // Cast model output to jet tag score datatype
+    modelResult_forOutput.second[i] = l1ct::jet_tag_score_t(modelResult.second[i]);
     if (isDebugEnabled_) {
-      LogDebug("L1TSC4NGJetID") << l1ct::JetTagClassHandler::tagClassesDefault_[i] << " : " << modelResult_[i]
+      LogDebug("L1TSC4NGJetID") << l1ct::JetTagClassHandler::tagClassesDefault_[i] << " : " << modelResult.second[i]
+                                << " Cast to Jet Class type: " << modelResult_forOutput.second[i]
                                 << std::endl;
     }
   }
-  modelResult_.push_back(modelResult.first[0].to_float());
+  // Cast model output to transient regression score for jet pt multiplication
+  modelResult_forOutput.first[0] = output_regression_type(modelResult.first[0]);
   if (isDebugEnabled_) {
     LogDebug("L1TSC4NGJetID") << "\n ===== Jet pT Correction Output ===== \n"
-                              << modelResult.first[0].to_float() << std::endl;
+                              << modelResult.first[0] 
+                              << " Cast to Jet pT type: " << modelResult_forOutput.first[0]
+                              << std::endl;
+    
   }
-  return modelResult_;
+
+  return modelResult_forOutput;
 }  //end EvaluateNNFixed
 
-std::vector<float> L1TSC4NGJetID::computeFixed(const l1t::PFJet &iJet, bool useRawPt) {
+L1TSC4NGJetID::outputpairtype L1TSC4NGJetID::computeFixed(const l1t::PFJet &iJet) {
   for (int i0 = 0; i0 < fNParticles_; i0++) {
     fPt_rel_.get()[i0] = 0;
     fPt_.get()[i0] = 0;
