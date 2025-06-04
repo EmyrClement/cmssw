@@ -1,4 +1,7 @@
 #include "L1Trigger/Phase2L1ParticleFlow/interface/L1TSC4NGJetID.h"
+#include "L1Trigger/Phase2L1ParticleFlow/interface/common/inversion.h"
+#include "L1Trigger/Phase2L1ParticleFlow/interface/common/log.h"
+
 #include "DataFormats/Math/interface/deltaPhi.h"
 #include <cmath>
 
@@ -202,7 +205,7 @@ L1TSC4NGJetID::outputpairtype L1TSC4NGJetID::computeFixed(const l1t::PFJet &iJet
     fPt_.get()[i0] = inputtype(puppicand.hwPt);
 
     constexpr int INV_LUT_SIZE = 256;
-    inputtype inv_jet_pt = L1TSC4NGJet::invert_with_shift<inputtype, inputtype, INV_LUT_SIZE>(jet_pt_);
+    inputtype inv_jet_pt = l1ct::invert_with_shift<inputtype, inputtype, INV_LUT_SIZE>(jet_pt_);
 
     fPt_rel_.get()[i0] = inputtype(puppicand.hwPt) * inv_jet_pt;
 
@@ -218,6 +221,17 @@ L1TSC4NGJetID::outputpairtype L1TSC4NGJetID::computeFixed(const l1t::PFJet &iJet
 
     fDEta_.get()[i0] = jet_eta_ - inputtype(puppicand.hwEta);
     fDPhi_.get()[i0] = dphiw;
+
+
+    constexpr int LOG_LUT_SIZE = 256;
+    //std::cout << "hwPt: " << puppicand.hwPt << " " << inputtype(puppicand.hwPt) << std::endl;
+    inputtype log_jet_pt = l1ct::log_with_shift<l1ct::pt_t,inputtype, LOG_LUT_SIZE>(puppicand.hwPt);
+    //ap_ufixed<18, 0> log_jet_pt = l1ct::log_with_shift<pt_t, ap_ufixed<18, 0>, 1024>(puppicand.hwPt);
+
+
+    //std::cout << "float log pt: " << std::log(float(puppicand.hwPt)) << std::endl;
+    //std::cout << "lut log pt: " << log_jet_pt << std::endl;
+    //std::cout << "log pt: " << std::log(float(puppicand.hwPt)) << std::endl;
 
     fPt_log_.get()[i0] = inputtype(std::log(float(puppicand.hwPt)));
    
