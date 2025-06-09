@@ -7,6 +7,7 @@
 #include <array>
 #include <cstdint>
 #include <vector>
+#include <string>
 #include <unordered_map>
 
 namespace l1ct {
