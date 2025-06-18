@@ -75,7 +75,7 @@ process.L1TInputTask = cms.Task(
 
 from L1Trigger.Phase2L1ParticleFlow.l1tJetFileWriter_cfi import l1tSeededConeJetFileWriter
 l1ctLayer2SCJetsProducts = cms.VPSet([cms.PSet(jets = cms.InputTag("l1tSC4NGJetProducer","l1tSC4NGJets"),
-                                               nJets = cms.uint32(24), #This is actually 12 jets, but each jet has 2 words
+                                               nJets = cms.uint32(12),
                                                mht  = cms.InputTag("l1tMHTPFProducer"),
                                                nSums = cms.uint32(2)),
                                       cms.PSet(jets = cms.InputTag("l1tSC8PFL1PuppiCorrectedEmulator"),
@@ -243,4 +243,5 @@ if args.tm18:
                 barrelSerenityVU13PTM18WriterConfig.clone(inputFileName = f"l1BarrelSerenityTM18-inputs-vu13p-ts{tmSlice}")
             )        
 
-process.source.fileNames  = [ '/store/cmst3/group/l1tr/cerminar/14_0_X/fpinputs_131X/v3/TTbar_PU200/inputs131X_1.root' ]
+#process.source.fileNames  = [ '/store/cmst3/group/l1tr/cerminar/14_0_X/fpinputs_131X/v3/TTbar_PU200/inputs131X_1.root' ]
+process.source.fileNames = ["file:inputs131X_1.root"]

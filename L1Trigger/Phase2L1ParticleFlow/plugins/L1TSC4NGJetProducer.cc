@@ -73,8 +73,7 @@ void L1TSC4NGJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSe
 
   for (const auto& srcjet : *jets) {
     l1ct::Jet ctHWTaggedJet = l1ct::Jet::unpack(srcjet.encodedJet(l1t::PFJet::HWEncoding::CT));
-    if (((fUseRawPt_ ? srcjet.rawPt() : srcjet.pt()) < fMinPt_) || std::abs(srcjet.eta()) > fMaxEta_ ||
-        taggedJets.size() >= fMaxJets_) {
+    if (taggedJets.size() >= fMaxJets_) {
       ctHWTaggedJet.clear();
       continue;
     }
