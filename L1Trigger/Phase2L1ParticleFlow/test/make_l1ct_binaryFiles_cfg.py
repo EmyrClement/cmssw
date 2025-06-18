@@ -75,7 +75,7 @@ process.L1TInputTask = cms.Task(
 
 from L1Trigger.Phase2L1ParticleFlow.l1tJetFileWriter_cfi import l1tSeededConeJetFileWriter
 l1ctLayer2SCJetsProducts = cms.VPSet([cms.PSet(jets = cms.InputTag("l1tSC4NGJetProducer","l1tSC4NGJets"),
-                                               nJets = cms.uint32(12),
+                                               nJets = cms.uint32(24), #This is actually 12 jets, but each jet has 2 words
                                                mht  = cms.InputTag("l1tMHTPFProducer"),
                                                nSums = cms.uint32(2)),
                                       cms.PSet(jets = cms.InputTag("l1tSC8PFL1PuppiCorrectedEmulator"),
