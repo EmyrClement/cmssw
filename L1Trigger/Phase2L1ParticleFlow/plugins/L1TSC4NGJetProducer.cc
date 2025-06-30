@@ -92,7 +92,7 @@ void L1TSC4NGJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSe
     L1TSC4NGJetID::output_regression_type tempPt = ctHWTaggedJet.hwPt;
 
     // If ctHWTaggedJet within eta and pt range, then apply the correction
-    if (std::abs(ctHWTaggedJet.floatEta()) < fMaxEta_ && ctHWTaggedJet.floatPt() > fMinPt_) {
+    if (std::abs(ctHWTaggedJet.floatEta()) < fMaxEta_ && ctHWTaggedJet.hwPt > fMinPt_) {
       tempPt = ctHWTaggedJet.hwPt * PtCorrection_;
     }
     else {
