@@ -34,8 +34,9 @@ private:
   const bool doJEC;
   unsigned int const fMaxJets_;
   int const fNParticles_;
-  bool const isDebugEnabled = false;
-  
+  double const fMinPt_;
+  double const fMaxEta_;
+  bool const isDebugEnabled;
   std::vector<l1ct::JetTagClass> classes_;
 
   hls4mlEmulator::ModelLoader loader;
@@ -48,6 +49,8 @@ L1TSC4NGJetProducer::L1TSC4NGJetProducer(const edm::ParameterSet& cfg)
       doJEC(cfg.getParameter<bool>("doJEC")),
       fMaxJets_(cfg.getParameter<int>("maxJets")),
       fNParticles_(cfg.getParameter<int>("nParticles")),
+      fMinPt_(cfg.getParameter<double>("minPt")),
+      fMaxEta_(cfg.getParameter<double>("maxEta")),
       isDebugEnabled(edm::isDebugEnabled()),
       loader(hls4mlEmulator::ModelLoader(cfg.getParameter<string>("l1tSC4NGJetModelPath"))) {
   std::vector<std::string> classes = cfg.getParameter<std::vector<std::string>>("classes");
@@ -86,14 +89,26 @@ void L1TSC4NGJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSe
       JetScore_float.push_back((float)JetModel_output.second[i]);
     }
     L1TSC4NGJetID::output_regression_type PtCorrection_ = JetModel_output.first[0];
-    L1TSC4NGJetID::output_regression_type jetPt = ctHWTaggedJet.hwPt;
-    L1TSC4NGJetID::output_regression_type tempPt = jetPt;
-    //L1TSC4NGJetID::output_regression_type tempPt = ctHWTaggedJet.hwPt * PtCorrection_;
+    L1TSC4NGJetID::output_regression_type tempPt = ctHWTaggedJet.hwPt;
 
-    if (doJEC) {
+    // If ctHWTaggedJet within eta and pt range, then apply the correction
+    if (std::abs(ctHWTaggedJet.floatEta()) < fMaxEta_ && ctHWTaggedJet.floatPt() > fMinPt_) {
+      tempPt = ctHWTaggedJet.hwPt * PtCorrection_;
+    }
+    else {
+      //If outside of the eta and pt range, clear out the tag scores
+      JetScore_float.clear();
+      for (unsigned i = 0; i < classes_.size(); i++) {
+        ctHWTaggedJet.hwTagScores[i] = 0;
+        JetScore_float.push_back(0);
+      }
+
+      if (doJEC) {
       float correctedPt = corrector->correctedPt(ctHWTaggedJet.floatPt(), ctHWTaggedJet.floatEta());
       tempPt = correctedPt;
+      }
     }
+
     ctHWTaggedJet.hwPt = l1ct::pt_t(tempPt);
     l1gt::Jet gtHWTaggedJet = ctHWTaggedJet.toGT();
     // TODO set the regressed pT instead of the srcjet pt
@@ -131,6 +146,8 @@ void L1TSC4NGJetProducer::fillDescriptions(edm::ConfigurationDescriptions& descr
   desc.add<std::string>("l1tSC4NGJetModelPath", std::string("L1TSC4NGJetModel_v0"));
   desc.add<int>("maxJets", 16);
   desc.add<int>("nParticles", 16);
+  desc.add<double>("minPt", 10);
+  desc.add<double>("maxEta", 2.4);
   desc.add<std::vector<std::string>>("classes", {"b", "c", "uds", "g", "tau_p", "tau_n", "mu", "e"});
 
   descriptions.add("l1tSC4NGJetProducer", desc);
