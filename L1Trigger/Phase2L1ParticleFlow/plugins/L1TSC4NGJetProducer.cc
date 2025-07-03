@@ -132,7 +132,7 @@ void L1TSC4NGJetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSe
     edmTaggedJet.addTagScores(JetScore_float, classes_, PtCorrection_);
     taggedJets.push_back(edmTaggedJet);
   }
-  std::sort(taggedJets.begin(), taggedJets.end(), [](l1t::PFJet a, l1t::PFJet b) { return (a.pt() > b.pt()); });
+  std::stable_sort(taggedJets.begin(), taggedJets.end(), [](l1t::PFJet a, l1t::PFJet b) { return (a.pt() > b.pt()); });
 
   auto taggedJetsCollection = std::make_unique<l1t::PFJetCollection>();
   taggedJetsCollection->swap(taggedJets);
