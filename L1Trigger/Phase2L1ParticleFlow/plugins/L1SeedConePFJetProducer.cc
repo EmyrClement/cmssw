@@ -35,6 +35,7 @@ private:
   const float coneSize;
   const unsigned nJets;
   const bool HW;
+  const bool sortJets;
   const bool debug;
   const bool doCorrections;
   L1SCJetEmu emulator;
@@ -58,7 +59,8 @@ L1SeedConePFJetProducer::L1SeedConePFJetProducer(const edm::ParameterSet& cfg)
     : coneSize(cfg.getParameter<double>("coneSize")),
       nJets(cfg.getParameter<unsigned>("nJets")),
       HW(cfg.getParameter<bool>("HW")),
-      debug(cfg.getParameter<bool>("debug")),
+      sortJets(cfg.getParameter<bool>("sortJets")),
+      debug(cfg.getParameter<bool>("debug")), 
       doCorrections(cfg.getParameter<bool>("doCorrections")),
       emulator(L1SCJetEmu(debug, coneSize, nJets)),
       l1PFToken(consumes<std::vector<l1t::PFCandidate>>(cfg.getParameter<edm::InputTag>("L1PFObjects"))) {
@@ -89,7 +91,10 @@ void L1SeedConePFJetProducer::produce(edm::StreamID /*unused*/,
     jets = processEvent_SW(particles);
   }
 
-  std::sort(jets.begin(), jets.end(), [](l1t::PFJet i, l1t::PFJet j) { return (i.pt() > j.pt()); });
+  if (sortJets) {
+    std::sort(jets.begin(), jets.end(), [](l1t::PFJet i, l1t::PFJet j) { return (i.pt() > j.pt()); });
+  }
+
   newPFJetCollection->swap(jets);
   iEvent.put(std::move(newPFJetCollection));
 }
@@ -222,6 +227,7 @@ void L1SeedConePFJetProducer::fillDescriptions(edm::ConfigurationDescriptions& d
   desc.add<uint32_t>("nJets", 16);
   desc.add<double>("coneSize", 0.4);
   desc.add<bool>("HW", false);
+  desc.add<bool>("sortJets", false);
   desc.add<bool>("debug", false);
   desc.add<bool>("doCorrections", false);
   desc.add<std::string>("correctorFile", "");
