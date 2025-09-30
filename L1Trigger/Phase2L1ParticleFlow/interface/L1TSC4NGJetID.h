@@ -53,7 +53,7 @@ public:
   typedef ap_fixed<24, 12, AP_RND, AP_SAT, 0> inputtype;
 
   typedef std::array<ap_ufixed<24, 12, AP_RND, AP_SAT, 0>, 8> classtype;
-  typedef std::array<ap_fixed<16, 6>, 1> regressiontype;
+  typedef std::array<ap_fixed<16,6,AP_RND,AP_SAT,0>, 1> regressiontype;
   typedef std::pair<regressiontype, classtype> pairtype;
 
   // Intermediate output type to allow full precision multiplication of jet pt by the ratio
