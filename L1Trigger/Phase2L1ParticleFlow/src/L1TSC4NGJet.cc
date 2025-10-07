@@ -233,8 +233,9 @@ L1TSC4NGJetID::outputpairtype L1TSC4NGJetID::computeFixed(const l1t::PFJet &iJet
     //std::cout << "lut log pt: " << log_jet_pt << std::endl;
     //std::cout << "log pt: " << std::log(float(puppicand.hwPt)) << std::endl;
 
-    fPt_log_.get()[i0] = inputtype(std::log(float(puppicand.hwPt)));
-   
+   inputtype log_pt = l1ct::log_with_shift<l1ct::pt_t,inputtype, LOG_LUT_SIZE>(puppicand.hwPt);
+   fPt_log_.get()[i0] = log_pt;
+
     inputtype massCand =  L1TSC4NGJet::candidate_mass<inputtype>(puppicand);    
     fMass_.get()[i0] = inputtype(massCand);
 
