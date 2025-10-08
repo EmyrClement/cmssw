@@ -189,7 +189,7 @@ L1TSC4NGJetID::outputpairtype L1TSC4NGJetID::computeFixed(const l1t::PFJet &iJet
     fCharge_.get()[i0] = 0;
   }
   auto iParts = iJet.constituents();
-  std::sort(iParts.begin(), iParts.end(), [](edm::Ptr<l1t::PFCandidate> i, edm::Ptr<l1t::PFCandidate> j) {
+  std::stable_sort(iParts.begin(), iParts.end(), [](edm::Ptr<l1t::PFCandidate> i, edm::Ptr<l1t::PFCandidate> j) {
     return (i->pt() > j->pt());
   });
 
@@ -212,7 +212,7 @@ L1TSC4NGJetID::outputpairtype L1TSC4NGJetID::computeFixed(const l1t::PFJet &iJet
     L1SCJetEmu::detaphi_t dphi(puppicand.hwPhi - jet_phi_);
     // phi wrap
     L1SCJetEmu::detaphi_t dphi0 = dphi > L1SCJetEmu::detaphi_t(l1ct::Scales::INTPHI_PI)
-                                      ? L1SCJetEmu::detaphi_t(l1ct::Scales::INTPHI_TWOPI - dphi)
+                                      ? L1SCJetEmu::detaphi_t(dphi - l1ct::Scales::INTPHI_TWOPI)
                                       : L1SCJetEmu::detaphi_t(dphi);
     L1SCJetEmu::detaphi_t dphi1 = dphi < L1SCJetEmu::detaphi_t(-l1ct::Scales::INTPHI_PI)
                                       ? L1SCJetEmu::detaphi_t(l1ct::Scales::INTPHI_TWOPI + dphi)
@@ -233,8 +233,9 @@ L1TSC4NGJetID::outputpairtype L1TSC4NGJetID::computeFixed(const l1t::PFJet &iJet
     //std::cout << "lut log pt: " << log_jet_pt << std::endl;
     //std::cout << "log pt: " << std::log(float(puppicand.hwPt)) << std::endl;
 
-    fPt_log_.get()[i0] = inputtype(std::log(float(puppicand.hwPt)));
-   
+   inputtype log_pt = l1ct::log_with_shift<l1ct::pt_t,inputtype, LOG_LUT_SIZE>(puppicand.hwPt);
+   fPt_log_.get()[i0] = log_pt;
+
     inputtype massCand =  L1TSC4NGJet::candidate_mass<inputtype>(puppicand);    
     fMass_.get()[i0] = inputtype(massCand);
 
