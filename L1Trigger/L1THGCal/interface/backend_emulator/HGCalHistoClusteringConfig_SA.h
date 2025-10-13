@@ -40,6 +40,12 @@ namespace l1thgcfirmware {
     void setZSide(const int zSide) { zSide_ = zSide; }
     int zSide() const { return zSide_; }
 
+    void setSideLength(float sideLength) { sideLength_ = sideLength; }
+    float sideLength() const { return sideLength_; }
+
+    void setMinClusterPtOut(const float pt) { minClusterPtOut_ = pt; }
+    float minClusterPtOut() const { return minClusterPtOut_; }
+
     void setStepLatencies(const std::vector<unsigned int>& latencies);
     unsigned int getStepLatency(const Step step) const { return stepLatency_.at(step); }
     unsigned int getLatencyUpToAndIncluding(const Step step) const;
@@ -88,9 +94,6 @@ namespace l1thgcfirmware {
     unsigned phiNValues() const { return phiNValues_; }
     void setPtDigiFactor(const float ptDigiFactor) { ptDigiFactor_ = ptDigiFactor; }
     float ptDigiFactor() const { return ptDigiFactor_; }
-
-    void setMinClusterPtOut(const float pt) { minClusterPtOut_ = pt; }
-    float minClusterPtOut() const { return minClusterPtOut_; }
 
     void setMaxClustersPerLink(const unsigned maxClustersPerLink) { maxClustersPerLink_ = maxClustersPerLink; }
     unsigned maxClustersPerLink() const { return maxClustersPerLink_; }
@@ -224,6 +227,12 @@ namespace l1thgcfirmware {
     void printConfiguration();  // For debugging
 
   private:
+    // Triangle size
+    float sideLength_;
+
+    // Selection on output clusters
+    float minClusterPtOut_;
+
     void initializeSmearingKernelConstants(unsigned int bins, unsigned int offset, unsigned int height);
     void initializeThresholdMaximaConstants(unsigned int bins, unsigned int a, unsigned int b, int c);
     void initializeCosLUT();
@@ -245,9 +254,6 @@ namespace l1thgcfirmware {
     float phiRange_;
     unsigned phiNValues_;
     float ptDigiFactor_;
-
-    // Selection on output clusters
-    float minClusterPtOut_;
 
     // Input link params
     unsigned int maxClustersPerLink_;

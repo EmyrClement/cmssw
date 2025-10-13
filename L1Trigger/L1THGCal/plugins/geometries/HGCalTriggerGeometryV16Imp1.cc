@@ -562,10 +562,10 @@ unsigned HGCalTriggerGeometryV16Imp1::getLinksInModule(const unsigned module_id)
   // Silicon and Scintillator
   else {
     // int packed_module =
-        // packLayerSubdetWaferId(module_det_id.layer(), subdet, module_det_id.moduleU(), module_det_id.moduleV());
+    // packLayerSubdetWaferId(module_det_id.layer(), subdet, module_det_id.moduleU(), module_det_id.moduleV());
     // links = links_per_module_.at(packed_module);
     int layer = module_det_id.layer();
-    if(subdet==HGCalTriggerSubdetector::HGCalEETrigger && layer>=7 && layer<=13) // shower max
+    if (subdet == HGCalTriggerSubdetector::HGCalEETrigger && layer >= 7 && layer <= 13)  // shower max
       links = 4;
     else
       links = 2;
@@ -1037,8 +1037,8 @@ bool HGCalTriggerGeometryV16Imp1::disconnectedModule(const unsigned module_id) c
   bool disconnected = false;
   HGCalTriggerModuleDetId id(module_id);
   // if (module_to_stage1_.find(packLayerSubdetWaferId(id.layer(), id.triggerSubdetId(), id.moduleU(), id.moduleV())) ==
-      // module_to_stage1_.end()) {
-    // disconnected = true;
+  // module_to_stage1_.end()) {
+  // disconnected = true;
   // }
   if (disconnected_layers_.find(layerWithOffset(module_id)) != disconnected_layers_.end()) {
     disconnected = true;

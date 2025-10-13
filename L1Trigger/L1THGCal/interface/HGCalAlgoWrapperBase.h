@@ -11,7 +11,7 @@
 #include "DataFormats/L1THGCal/interface/HGCalTowerMap.h"
 
 typedef HGCalAlgoWrapperBaseT<
-    const std::vector<std::vector<edm::Ptr<l1t::HGCalCluster>>>,
+    const std::vector<edm::Ptr<l1t::HGCalCluster>>,
     std::pair<l1t::HGCalMulticlusterBxCollection&, l1t::HGCalClusterBxCollection&>,
     std::tuple<const HGCalTriggerGeometryBase* const, const edm::ParameterSet&, const unsigned int, const int>>
     HGCalHistoClusteringWrapperBase;

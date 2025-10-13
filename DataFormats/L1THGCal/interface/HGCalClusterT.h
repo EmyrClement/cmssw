@@ -6,6 +6,7 @@
 #include "DataFormats/GeometryVector/interface/GlobalPoint.h"
 #include "DataFormats/L1Trigger/interface/L1Candidate.h"
 #include "DataFormats/L1THGCal/interface/HGCalTriggerCell.h"
+#include "DataFormats/L1THGCal/interface/HGCalCluster_HW.h"
 #include "DataFormats/ForwardDetId/interface/ForwardSubdetector.h"
 #include "DataFormats/ForwardDetId/interface/HGCalTriggerDetId.h"
 #include "DataFormats/ForwardDetId/interface/HFNoseTriggerDetId.h"
@@ -66,7 +67,8 @@ namespace l1t {
       updateP4AndPosition(c, updateCentre, fraction);
 
       constituents_.emplace(c->detId(), c);
-      constituentsFraction_.emplace(c->detId(), fraction);
+      float fractionToUse = (fraction > 0) ? fraction : 1.0;  // Hack for handling emulated clusters
+      constituentsFraction_.emplace(c->detId(), fractionToUse);
     }
 
     void removeConstituent(const edm::Ptr<C>& c, bool updateCentre = true) {
@@ -137,6 +139,9 @@ namespace l1t {
 
     uint32_t subdetId() const { return detId_.subdetId(); }
 
+    unsigned int maxFinderPass() const { return maxFinderPass_; }
+    void setMaxFinderPass(unsigned int pass) { maxFinderPass_ = pass; }
+
     //shower shape
 
     int showerLength() const { return showerLength_; }
@@ -144,6 +149,7 @@ namespace l1t {
     int firstLayer() const { return firstLayer_; }
     int maxLayer() const { return maxLayer_; }
     float eMax() const { return eMax_; }
+    float sigmaEE() const { return sigmaEE_; }
     float sigmaEtaEtaMax() const { return sigmaEtaEtaMax_; }
     float sigmaPhiPhiMax() const { return sigmaPhiPhiMax_; }
     float sigmaEtaEtaTot() const { return sigmaEtaEtaTot_; }
@@ -184,6 +190,7 @@ namespace l1t {
     void setFirstLayer(int firstLayer) { firstLayer_ = firstLayer; }
     void setMaxLayer(int maxLayer) { maxLayer_ = maxLayer; }
     void setEMax(float eMax) { eMax_ = eMax; }
+    void setSigmaEE(float sigmaEE) { sigmaEE_ = sigmaEE; }
     void setSigmaEtaEtaMax(float sigmaEtaEtaMax) { sigmaEtaEtaMax_ = sigmaEtaEtaMax; }
     void setSigmaEtaEtaTot(float sigmaEtaEtaTot) { sigmaEtaEtaTot_ = sigmaEtaEtaTot; }
     void setSigmaPhiPhiMax(float sigmaPhiPhiMax) { sigmaPhiPhiMax_ = sigmaPhiPhiMax; }
@@ -219,80 +226,49 @@ namespace l1t {
     void setEbm1(int ebm1) { ebm1_ = ebm1; }
     void setHbm(int hbm) { hbm_ = hbm; }
 
-    // Firmware-specific cluster properties
-    unsigned long int hw_sigma_e_quotient() const { return hw_sigma_e_quotient_; }
-    unsigned long int hw_sigma_e_fraction() const { return hw_sigma_e_fraction_; }
-    unsigned long int hw_mean_z_quotient() const { return hw_mean_z_quotient_; }
-    unsigned long int hw_mean_z_fraction() const { return hw_mean_z_fraction_; }
-    unsigned long int hw_mean_phi_quotient() const { return hw_mean_phi_quotient_; }
-    unsigned long int hw_mean_phi_fraction() const { return hw_mean_phi_fraction_; }
-    unsigned long int hw_mean_eta_quotient() const { return hw_mean_eta_quotient_; }
-    unsigned long int hw_mean_eta_fraction() const { return hw_mean_eta_fraction_; }
-    unsigned long int hw_mean_roz_quotient() const { return hw_mean_roz_quotient_; }
-    unsigned long int hw_mean_roz_fraction() const { return hw_mean_roz_fraction_; }
-    unsigned long int hw_sigma_z_quotient() const { return hw_sigma_z_quotient_; }
-    unsigned long int hw_sigma_z_fraction() const { return hw_sigma_z_fraction_; }
-    unsigned long int hw_sigma_phi_quotient() const { return hw_sigma_phi_quotient_; }
-    unsigned long int hw_sigma_phi_fraction() const { return hw_sigma_phi_fraction_; }
-    unsigned long int hw_sigma_eta_quotient() const { return hw_sigma_eta_quotient_; }
-    unsigned long int hw_sigma_eta_fraction() const { return hw_sigma_eta_fraction_; }
-    unsigned long int hw_sigma_roz_quotient() const { return hw_sigma_roz_quotient_; }
-    unsigned long int hw_sigma_roz_fraction() const { return hw_sigma_roz_fraction_; }
-    unsigned long int hw_e_em_over_e_quotient() const { return hw_e_em_over_e_quotient_; }
-    unsigned long int hw_e_em_over_e_fraction() const { return hw_e_em_over_e_fraction_; }
-    unsigned long int hw_e_em_core_over_e_em_quotient() const { return hw_e_em_core_over_e_em_quotient_; }
-    unsigned long int hw_e_em_core_over_e_em_fraction() const { return hw_e_em_core_over_e_em_fraction_; }
-    unsigned long int hw_e_h_early_over_e_quotient() const { return hw_e_h_early_over_e_quotient_; }
-    unsigned long int hw_e_h_early_over_e_fraction() const { return hw_e_h_early_over_e_fraction_; }
+    // Hardware value getters
+    unsigned int hwE() const { return hw_e_; }
+    unsigned int hwE_EM() const { return hw_e_em_; }
+    unsigned int hwGctBits() const { return hw_gctBits_; }
+    unsigned int hwFractionInCE_E() const { return hw_fractionInCE_E_; }
+    unsigned int hwFractionInCoreCE_E() const { return hw_fractionInCoreCE_E_; }
+    unsigned int hwFractionInEarlyCE_E() const { return hw_fractionInEarlyCE_E_; }
+    unsigned int hwFirstLayer() const { return hw_firstLayer_; }
+    unsigned int hwEta() const { return hw_eta_; }
+    int hwPhi() const { return hw_phi_; }
+    unsigned int hwZ() const { return hw_z_; }
+    unsigned int hwNTC() const { return hw_nTC_; }
+    unsigned int hwQualFlags() const { return hw_qualFlags_; }
+    unsigned int hwSigmaE() const { return hw_sigma_E_; }
+    unsigned int hwLastLayer() const { return hw_lastLayer_; }
+    unsigned int hwShowerLength() const { return hw_showerLength_; }
+    unsigned int hwSigmaZ() const { return hw_sigma_z_; }
+    unsigned int hwSigmaPhi() const { return hw_sigma_phi_; }
+    unsigned int hwCoreShowerLength() const { return hw_coreShowerLength_; }
+    unsigned int hwSigmaEta() const { return hw_sigma_eta_; }
+    unsigned int hwSigmaRoz() const { return hw_sigma_roz_; }
 
-    void set_hw_sigma_e_quotient(unsigned long int sigma_e_quotient) { hw_sigma_e_quotient_ = sigma_e_quotient; }
-    void set_hw_sigma_e_fraction(unsigned long int sigma_e_fraction) { hw_sigma_e_fraction_ = sigma_e_fraction; }
-    void set_hw_mean_z_quotient(unsigned long int mean_z_quotient) { hw_mean_z_quotient_ = mean_z_quotient; }
-    void set_hw_mean_z_fraction(unsigned long int mean_z_fraction) { hw_mean_z_fraction_ = mean_z_fraction; }
-    void set_hw_mean_phi_quotient(unsigned long int mean_phi_quotient) { hw_mean_phi_quotient_ = mean_phi_quotient; }
-    void set_hw_mean_phi_fraction(unsigned long int mean_phi_fraction) { hw_mean_phi_fraction_ = mean_phi_fraction; }
-    void set_hw_mean_eta_quotient(unsigned long int mean_eta_quotient) { hw_mean_eta_quotient_ = mean_eta_quotient; }
-    void set_hw_mean_eta_fraction(unsigned long int mean_eta_fraction) { hw_mean_eta_fraction_ = mean_eta_fraction; }
-    void set_hw_mean_roz_quotient(unsigned long int mean_roz_quotient) { hw_mean_roz_quotient_ = mean_roz_quotient; }
-    void set_hw_mean_roz_fraction(unsigned long int mean_roz_fraction) { hw_mean_roz_fraction_ = mean_roz_fraction; }
-    void set_hw_sigma_z_quotient(unsigned long int sigma_z_quotient) { hw_sigma_z_quotient_ = sigma_z_quotient; }
-    void set_hw_sigma_z_fraction(unsigned long int sigma_z_fraction) { hw_sigma_z_fraction_ = sigma_z_fraction; }
-    void set_hw_sigma_phi_quotient(unsigned long int sigma_phi_quotient) {
-      hw_sigma_phi_quotient_ = sigma_phi_quotient;
-    }
-    void set_hw_sigma_phi_fraction(unsigned long int sigma_phi_fraction) {
-      hw_sigma_phi_fraction_ = sigma_phi_fraction;
-    }
-    void set_hw_sigma_eta_quotient(unsigned long int sigma_eta_quotient) {
-      hw_sigma_eta_quotient_ = sigma_eta_quotient;
-    }
-    void set_hw_sigma_eta_fraction(unsigned long int sigma_eta_fraction) {
-      hw_sigma_eta_fraction_ = sigma_eta_fraction;
-    }
-    void set_hw_sigma_roz_quotient(unsigned long int sigma_roz_quotient) {
-      hw_sigma_roz_quotient_ = sigma_roz_quotient;
-    }
-    void set_hw_sigma_roz_fraction(unsigned long int sigma_roz_fraction) {
-      hw_sigma_roz_fraction_ = sigma_roz_fraction;
-    }
-    void set_hw_e_em_over_e_quotient(unsigned long int e_em_over_e_quotient) {
-      hw_e_em_over_e_quotient_ = e_em_over_e_quotient;
-    }
-    void set_hw_e_em_over_e_fraction(unsigned long int e_em_over_e_fraction) {
-      hw_e_em_over_e_fraction_ = e_em_over_e_fraction;
-    }
-    void set_hw_e_em_core_over_e_em_quotient(unsigned long int e_em_core_over_e_em_quotient) {
-      hw_e_em_core_over_e_em_quotient_ = e_em_core_over_e_em_quotient;
-    }
-    void set_hw_e_em_core_over_e_em_fraction(unsigned long int e_em_core_over_e_em_fraction) {
-      hw_e_em_core_over_e_em_fraction_ = e_em_core_over_e_em_fraction;
-    }
-    void set_hw_e_h_early_over_e_quotient(unsigned long int e_h_early_over_e_quotient) {
-      hw_e_h_early_over_e_quotient_ = e_h_early_over_e_quotient;
-    }
-    void set_hw_e_h_early_over_e_fraction(unsigned long int e_h_early_over_e_fraction) {
-      hw_e_h_early_over_e_fraction_ = e_h_early_over_e_fraction;
-    }
+    // Hardware value setters
+    void setHwE(unsigned int e) { hw_e_ = e; }
+    void setHwE_EM(unsigned int e_em) { hw_e_em_ = e_em; }
+    void setHwGctBits(unsigned int gctBits) { hw_gctBits_ = gctBits; }
+    void setHwFractionInCE_E(unsigned int frac) { hw_fractionInCE_E_ = frac; }
+    void setHwFractionInCoreCE_E(unsigned int frac) { hw_fractionInCoreCE_E_ = frac; }
+    void setHwFractionInEarlyCE_E(unsigned int frac) { hw_fractionInEarlyCE_E_ = frac; }
+    void setHwFirstLayer(unsigned int layer) { hw_firstLayer_ = layer; }
+    void setHwEta(unsigned int eta) { hw_eta_ = eta; }
+    void setHwPhi(int phi) { hw_phi_ = phi; }
+    void setHwZ(unsigned int z) { hw_z_ = z; }
+    void setHwNTC(unsigned int nTC) { hw_nTC_ = nTC; }
+    void setHwQualFlags(unsigned int qualFlags) { hw_qualFlags_ = qualFlags; }
+    void setHwSigmaE(unsigned int sigmaE) { hw_sigma_E_ = sigmaE; }
+    void setHwLastLayer(unsigned int layer) { hw_lastLayer_ = layer; }
+    void setHwShowerLength(unsigned int length) { hw_showerLength_ = length; }
+    void setHwSigmaZ(unsigned int sigmaZ) { hw_sigma_z_ = sigmaZ; }
+    void setHwSigmaPhi(unsigned int sigmaPhi) { hw_sigma_phi_ = sigmaPhi; }
+    void setHwCoreShowerLength(unsigned int length) { hw_coreShowerLength_ = length; }
+    void setHwSigmaEta(unsigned int sigmaEta) { hw_sigma_eta_ = sigmaEta; }
+    void setHwSigmaRoz(unsigned int sigmaRoz) { hw_sigma_roz_ = sigmaRoz; }
 
     /* operators */
     bool operator<(const HGCalClusterT<C>& cl) const { return mipPt() < cl.mipPt(); }
@@ -306,6 +282,8 @@ namespace l1t {
 
     std::unordered_map<uint32_t, edm::Ptr<C>> constituents_;
     std::unordered_map<uint32_t, double> constituentsFraction_;
+
+    unsigned int maxFinderPass_ = 0;  // Which iteration of the max finder algorithm produced this cluster
 
     GlobalPoint centre_;
     GlobalPoint centreProj_;  // centre projected onto the first HGCal layer
@@ -321,6 +299,7 @@ namespace l1t {
     int firstLayer_ = 0;
     int maxLayer_ = 0;
     float eMax_ = 0.;
+    float sigmaEE_ = 0.;
     float sigmaEtaEtaMax_ = 0.;
     float sigmaPhiPhiMax_ = 0.;
     float sigmaRRMax_ = 0.;
@@ -356,31 +335,27 @@ namespace l1t {
     int ebm1_ = 0;
     int hbm_ = 0;
 
-    // firmware-specific cluster properties
-    unsigned long int hw_sigma_e_quotient_ = 0;
-    unsigned long int hw_sigma_e_fraction_ = 0;
-    unsigned long int hw_mean_z_quotient_ = 0;
-    unsigned long int hw_mean_z_fraction_ = 0;
-    unsigned long int hw_mean_phi_quotient_ = 0;
-    unsigned long int hw_mean_phi_fraction_ = 0;
-    unsigned long int hw_mean_eta_quotient_ = 0;
-    unsigned long int hw_mean_eta_fraction_ = 0;
-    unsigned long int hw_mean_roz_quotient_ = 0;
-    unsigned long int hw_mean_roz_fraction_ = 0;
-    unsigned long int hw_sigma_z_quotient_ = 0;
-    unsigned long int hw_sigma_z_fraction_ = 0;
-    unsigned long int hw_sigma_phi_quotient_ = 0;
-    unsigned long int hw_sigma_phi_fraction_ = 0;
-    unsigned long int hw_sigma_eta_quotient_ = 0;
-    unsigned long int hw_sigma_eta_fraction_ = 0;
-    unsigned long int hw_sigma_roz_quotient_ = 0;
-    unsigned long int hw_sigma_roz_fraction_ = 0;
-    unsigned long int hw_e_em_over_e_quotient_ = 0;
-    unsigned long int hw_e_em_over_e_fraction_ = 0;
-    unsigned long int hw_e_em_core_over_e_em_quotient_ = 0;
-    unsigned long int hw_e_em_core_over_e_em_fraction_ = 0;
-    unsigned long int hw_e_h_early_over_e_quotient_ = 0;
-    unsigned long int hw_e_h_early_over_e_fraction_ = 0;
+    // firmware-specific cluster properties from HGCalCluster_HW
+    unsigned int hw_e_ = 0;
+    unsigned int hw_e_em_ = 0;
+    unsigned int hw_gctBits_ = 0;
+    unsigned int hw_fractionInCE_E_ = 0;
+    unsigned int hw_fractionInCoreCE_E_ = 0;
+    unsigned int hw_fractionInEarlyCE_E_ = 0;
+    unsigned int hw_firstLayer_ = 0;
+    unsigned int hw_eta_ = 0;
+    int hw_phi_ = 0;
+    unsigned int hw_z_ = 0;
+    unsigned int hw_nTC_ = 0;
+    unsigned int hw_qualFlags_ = 0;
+    unsigned int hw_sigma_E_ = 0;
+    unsigned int hw_lastLayer_ = 0;
+    unsigned int hw_showerLength_ = 0;
+    unsigned int hw_sigma_z_ = 0;
+    unsigned int hw_sigma_phi_ = 0;
+    unsigned int hw_coreShowerLength_ = 0;
+    unsigned int hw_sigma_eta_ = 0;
+    unsigned int hw_sigma_roz_ = 0;
 
     void updateP4AndPosition(const edm::Ptr<C>& c, bool updateCentre = true, float fraction = 1.) {
       double cMipt = c->mipPt() * fraction;

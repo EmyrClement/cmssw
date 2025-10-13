@@ -99,7 +99,12 @@ private:
   bool pass(const T& obj, const Tref& ref) const {
     bool pass_threshold = (obj.mipPt() > threshold_);
     GlobalPoint proj(Basic3DVector<float>(obj.position()) / std::abs(obj.position().z()));
-    bool pass_distance = ((proj - ref.centreProj()).mag() < distance_);
+    GlobalPoint refCentreProj = ref.centreProj();
+    // If ref.centreProj() is (0,0,0), calculate it from ref.position()
+    if (refCentreProj == GlobalPoint(0, 0, 0) && std::abs(ref.position().z()) > 0) {
+      refCentreProj = GlobalPoint(Basic3DVector<float>(ref.position()) / std::abs(ref.position().z()));
+    }
+    bool pass_distance = ((proj - refCentreProj).mag() < distance_);
     return pass_threshold && pass_distance;
   }
 

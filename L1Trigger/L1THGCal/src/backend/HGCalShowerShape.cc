@@ -422,7 +422,6 @@ float HGCalShowerShape::eMax(const l1t::HGCalMulticluster& c3d) const {
     if (layer.second > EMax)
       EMax = layer.second;
   }
-
   return EMax;
 }
 
