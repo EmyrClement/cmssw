@@ -828,12 +828,20 @@ EGIsoEleObjEmu &PFTkEGAlgoEmulator::addEGIsoEleToPF(std::vector<EGIsoEleObjEmu> 
   egiso.srcTrack = track.src;
   egiso.hwIDScore = bdtScore;
   // additional variables for pt regression on layer-2
-  egiso.hwTkRedChi2RPhi = track.hwRedChi2RPhi;
-  egiso.hwTkCaloDphi = abs(track.hwPhi - calo.hwPhi);
-  egiso.hwCaloShowerShape = calo.hwShowerShape;
+  const bool fillPtRegressionInputs =
+      cfg.algorithm == PFTkEGAlgoEmuConfig::Algo::compositeEB_v0 ||
+      cfg.algorithm == PFTkEGAlgoEmuConfig::Algo::compositeEB_v1;
+  if (fillPtRegressionInputs) {
+    egiso.hwTkRedChi2RPhi = track.hwRedChi2RPhi;
+    egiso.hwTkCaloDphi = abs(track.hwPhi - calo.hwPhi);
+    egiso.hwCaloShowerShape = calo.hwShowerShape;
 
-  ap_ufixed<16, 0> tk_invPt = l1ct::invert_with_shift<pt_t, ap_ufixed<16, 0>, 1024>(track.hwPt);
-  egiso.hwCaloTkPtRatio = l1ct::Scales::makeCaloTkPtRatio(calo.hwPt * tk_invPt);
+    ap_ufixed<16, 0> tk_invPt =
+        l1ct::invert_with_shift<pt_t, ap_ufixed<16, 0>, 1024>(track.hwPt);
+    egiso.hwCaloTkPtRatio =
+        l1ct::Scales::makeCaloTkPtRatio(calo.hwPt * tk_invPt);
+  }
+
   egobjs.push_back(egiso);
 
   if (debug_ > 2)
