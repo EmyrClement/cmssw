@@ -32,7 +32,7 @@ process.load('Configuration.StandardSequences.Services_cff')
 process.load("SimGeneral.HepPDTESSource.pythiapdt_cfi")
 process.load("FWCore.MessageLogger.MessageLogger_cfi")
 process.options   = cms.untracked.PSet( wantSummary = cms.untracked.bool(True), allowUnscheduled = cms.untracked.bool(False) )
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(1008))
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1))
 process.MessageLogger.cerr.FwkReport.reportEvery = 1
 
 process.source = cms.Source("PoolSource",
@@ -203,7 +203,12 @@ process.l1tLayer1HGCal.hgcalInputConversionParameters.emulateCorrections = True
 process.l1tLayer1HGCalElliptic.hgcalInputConversionParameters.emulateCorrections = True
 process.l1tLayer1HGCalNoTK.hgcalInputConversionParameters.emulateCorrections = True
 
+
+from FWCore.Modules.preScaler_cfi import preScaler
+process.preScaler = preScaler.clone(prescaleFactor = 3, prescaleOffset = 1)
+
 process.runPF = cms.Path( 
+        process.preScaler +
         process.l1tGTTInputProducer +
         process.l1tTrackSelectionProducer +
         process.l1tVertexFinderEmulator +
@@ -296,3 +301,5 @@ if not args.patternFilesOFF:
     )
 
 process.source.fileNames  = [ '/store/cmst3/group/l1tr/FastPUPPI/14_2_X/fpinputs_140X/v0/TT_PU200/inputs140X_1.root' ]
+#process.l1tVertexFinderEmulator.VertexReconstruction.Algorithm = "NNEmulation"
+process.l1tVertexFinderEmulator.VertexReconstruction.VxMinTrackPt = 0.0
