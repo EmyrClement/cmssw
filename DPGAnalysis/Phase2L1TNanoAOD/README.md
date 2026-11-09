@@ -83,3 +83,34 @@ The GT emulator decisions are stored like this now:
 ```
 L1_pSingleTkMuon22_final # seed name and final for post prescale value
 ```
+
+## Optional calibration tables
+
+`pionCalibration_cff.py` defines an opt-in task with raw/corrected decoded barrel
+calorimeter objects, prompt pion truth, and matched pion response quantities.
+It does not change the standard menu task. To attach it to a workflow that
+already produces the configured inputs:
+
+```python
+from DPGAnalysis.Phase2L1TNanoAOD.pionCalibration_cff import add_pion_calibration_tables
+process = add_pion_calibration_tables(process, path="p", output="outnano")
+```
+
+`L1PFDecodedCaloTableProducer` extends a generic object table with decoded
+hardware quantities. It was moved from FastPUPPI, retaining its plugin name and
+columns. Use a FastPUPPI revision with the old registration removed when building
+both packages together. `PionCalibrationResponseTableProducer` implements the
+multi-collection matching, propagation and cone calculations needed by the
+response fitter. Neither producer includes FastPUPPI headers.
+
+Keep reusable producers in `plugins/`, workflow-specific opt-in tasks in named
+Python fragments, and example jobs in `test/`. Prefer generic Simple tables with
+explicit Python variables whenever possible. A separate package is warranted
+when workflows develop distinct dependencies or ownership, rather than simply
+because the number of table definitions increases.
+
+`test/pionCalibrationNano_cfg.py` is a hackathon production example using the
+FastPUPPI emulation configuration; that example still needs FastPUPPI. The
+registered `testPionCalibrationTables` test only checks zero-event construction
+and does not import FastPUPPI. Event-level agreement is validated separately
+with the pion sample and original analyzer.

@@ -1,3 +1,9 @@
+<use name="DataFormats/L1THGCal"/>
+<use name="DataFormats/L1TCalorimeterPhase2"/>
+<use name="DataFormats/HepMCCandidate"/>
+<use name="DataFormats/JetReco"/>
+<use name="DataFormats/Math"/>
+<use name="L1Trigger/Phase2L1ParticleFlow"/>
 <use name="CondFormats/DataRecord"/>
 <use name="CondFormats/L1TObjects"/>
 <use name="CondFormats/RunInfo"/>

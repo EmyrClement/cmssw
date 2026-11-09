@@ -1,0 +1,1 @@
+<test name="testPionCalibrationTables" command="cmsRun ${LOCALTOP}/src/DPGAnalysis/Phase2L1TNanoAOD/test/testPionCalibrationTables_cfg.py"/>
