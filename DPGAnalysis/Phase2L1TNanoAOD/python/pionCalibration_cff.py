@@ -62,7 +62,8 @@ calibGenPiTable = cms.EDProducer(
 )
 
 # Matching, propagation and cone sums require several collections, rather than
-# individual-object expressions. All response columns share the matched pion rows.
+# individual-object expressions. All sources intentionally resolve the latest
+# matching process. All response columns share the matched pion rows.
 # Collection names containing "Calo", "Ecal" or "Hcal" use propagated directions,
 # following the original FastPUPPI response calculation.
 calibResponseTable = cms.EDProducer(

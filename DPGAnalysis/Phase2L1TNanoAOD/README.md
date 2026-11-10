@@ -88,8 +88,22 @@ L1_pSingleTkMuon22_final # seed name and final for post prescale value
 
 `pionCalibration_cff.py` defines an opt-in task with raw/corrected decoded barrel
 calorimeter objects, prompt pion truth, and matched pion response quantities.
-It does not change the standard menu task. To attach it to a workflow that
-already produces the configured inputs:
+It does not change the standard menu task. For a cmsDriver workflow containing
+`NANO:@Phase2L1DPGwithGen`, append this function to `--customise`:
+
+```text
+DPGAnalysis/Phase2L1TNanoAOD/customisePionCalibration.customisePionCalibrationNano
+```
+
+The customisation clones `l1tLayer1Barrel` with its hadronic correction disabled,
+adds the clone and calibration tables to `nanoAOD_step`, and keeps their tables
+through `NANOAODoutput`. InputTags intentionally omit the process name and hence
+select the latest matching products, normally from `L1TReRun` in a rerun job.
+The calibration fitter needs the `Response` table; the standard TP tables are an
+independent optional customisation.
+
+For a non-cmsDriver job, attach only the table task to existing compatible
+producers with:
 
 ```python
 from DPGAnalysis.Phase2L1TNanoAOD.pionCalibration_cff import add_pion_calibration_tables
