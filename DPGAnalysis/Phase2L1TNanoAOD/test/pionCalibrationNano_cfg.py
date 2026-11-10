@@ -9,6 +9,8 @@ options = VarParsing('analysis')
 options._tagOrder = []  # Honour the requested output filename exactly.
 options.register('writeReference', False, options.multiplicity.singleton, options.varType.bool,
                  'Also write the original FastPUPPI response tuple for validation')
+options.register('correctionFile', '', options.multiplicity.singleton, options.varType.string,
+                 'Optional barrel hadronic calibration ROOT file')
 options.maxEvents = 10
 options.outputFile = 'pion_calibration_nano.root'
 options.parseArguments()
@@ -30,6 +32,10 @@ process.l1tLayer1BarrelRaw = process.l1tLayer1Barrel.clone(
         gctHadCorrector = '',
     ),
 )
+if options.correctionFile:
+    process.l1tLayer1Barrel.gctHadInputConversionParameters.gctHadCorrector = cms.string(
+        options.correctionFile
+    )
 process.extraPFStuff.add(process.l1tLayer1BarrelRaw)
 process.source.fileNames = options.inputFiles
 process.maxEvents.input = options.maxEvents
