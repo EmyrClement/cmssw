@@ -11,6 +11,8 @@ options.register('writeReference', False, options.multiplicity.singleton, option
                  'Also write the original FastPUPPI response tuple for validation')
 options.register('correctionFile', '', options.multiplicity.singleton, options.varType.string,
                  'Optional barrel hadronic calibration ROOT file')
+options.register('hgcalCorrectionFile', '', options.multiplicity.singleton, options.varType.string,
+                 'Optional HGCal hadronic calibration ROOT file')
 options.maxEvents = 10
 options.outputFile = 'pion_calibration_nano.root'
 options.parseArguments()
@@ -32,11 +34,32 @@ process.l1tLayer1BarrelRaw = process.l1tLayer1Barrel.clone(
         gctHadCorrector = '',
     ),
 )
+process.l1tLayer1HGCalRaw = process.l1tLayer1HGCal.clone(
+    hgcalInputConversionParameters = process.l1tLayer1HGCal.hgcalInputConversionParameters.clone(
+        corrector = '',
+    ),
+)
+process.l1tLayer1HGCalNoTKRaw = process.l1tLayer1HGCalNoTK.clone(
+    hgcalInputConversionParameters = process.l1tLayer1HGCalNoTK.hgcalInputConversionParameters.clone(
+        corrector = '',
+    ),
+)
 if options.correctionFile:
     process.l1tLayer1Barrel.gctHadInputConversionParameters.gctHadCorrector = cms.string(
         options.correctionFile
     )
-process.extraPFStuff.add(process.l1tLayer1BarrelRaw)
+if options.hgcalCorrectionFile:
+    process.l1tLayer1HGCal.hgcalInputConversionParameters.corrector = cms.string(
+        options.hgcalCorrectionFile
+    )
+    process.l1tLayer1HGCalNoTK.hgcalInputConversionParameters.corrector = cms.string(
+        options.hgcalCorrectionFile
+    )
+process.extraPFStuff.add(
+    process.l1tLayer1BarrelRaw,
+    process.l1tLayer1HGCalRaw,
+    process.l1tLayer1HGCalNoTKRaw,
+)
 process.source.fileNames = options.inputFiles
 process.maxEvents.input = options.maxEvents
 process.outnano.fileName = options.outputFile

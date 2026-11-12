@@ -1,6 +1,8 @@
 // Calibration-only Nano response table. The matching, cone helpers and 10-bit
 // rounding follow FastPUPPI ResponseNTuplizer.cc at d8521ad175c4a75157b7b30236e546f7d4fe5dfc.
-// This first implementation selects prompt charged pions matched uniquely to gen jets.
+// The selected prompt particle IDs are configured in Python. This supports the
+// charged-pion barrel workflow and the mixed-particle HGCal workflow with the
+// same matching definition.
 // It deliberately does not implement the reference analyzer's tau or random-cone modes.
 #include "FWCore/Framework/interface/stream/EDProducer.h"
 #include "FWCore/Framework/interface/Event.h"
@@ -134,7 +136,8 @@ public:
   explicit PionCalibrationResponseTableProducer(const edm::ParameterSet& cfg)
       : genJets_(consumes<std::vector<reco::GenJet>>(cfg.getParameter<edm::InputTag>("genJets"))),
         genParticles_(consumes<std::vector<reco::GenParticle>>(cfg.getParameter<edm::InputTag>("genParticles"))),
-        name_(cfg.getParameter<std::string>("name")) {
+        name_(cfg.getParameter<std::string>("name")),
+        particlePdgIds_(cfg.getParameter<std::vector<int>>("particlePdgIds")) {
     const auto objects = cfg.getParameter<edm::ParameterSet>("objects");
     for (const auto& name : objects.getParameterNamesForType<std::vector<edm::InputTag>>())
       collections_.emplace_back(objects, name, consumesCollector());
@@ -151,7 +154,7 @@ public:
     for (auto& collection : collections_)
       collection.get(event);
 
-    // All columns share one row per selected gen-jet/pion match. Empty events
+    // All columns share one row per selected gen-jet/particle match. Empty events
     // retain the same schema with zero rows. No fitting selection is imposed here.
     std::map<std::string, std::vector<float>> columns;
     for (const auto* field : {"mc_pt", "mc_eta", "mc_phi", "mc_caloeta", "mc_calophi", "mc_iso04"})
@@ -172,7 +175,8 @@ public:
           match = particle;
         }
       }
-      if (ambiguous || !match || std::abs(match->pdgId()) != 211)
+      if (ambiguous || !match ||
+          std::find(particlePdgIds_.begin(), particlePdgIds_.end(), std::abs(match->pdgId())) == particlePdgIds_.end())
         continue;
       const float pt = zip(match->pt());
       const float eta = zip(match->eta()), phi = zip(match->phi());
@@ -194,8 +198,7 @@ public:
       }
     }
     auto table = std::make_unique<nanoaod::FlatTable>(pdgIds.size(), name_, false, false);
-    table->addColumn<int>(
-        "mc_id", pdgIds, "Absolute generator PDG ID; prompt charged pions matched uniquely to gen jets");
+    table->addColumn<int>("mc_id", pdgIds, "Absolute generator PDG ID; prompt particles matched uniquely to gen jets");
     for (const auto& column : columns)
       table->addColumn<float>(column.first, column.second, columnDocumentation(column.first), -1);
     event.put(std::move(table));
@@ -206,15 +209,15 @@ public:
 private:
   static std::string columnDocumentation(const std::string& name) {
     if (name == "mc_pt")
-      return "Matched generator pion transverse momentum [GeV]";
+      return "Matched generator-particle transverse momentum [GeV]";
     if (name == "mc_eta")
-      return "Matched generator pion pseudorapidity";
+      return "Matched generator-particle pseudorapidity";
     if (name == "mc_phi")
-      return "Matched generator pion azimuth [rad]";
+      return "Matched generator-particle azimuth [rad]";
     if (name == "mc_caloeta")
-      return "Generator pion pseudorapidity propagated to the calorimeter";
+      return "Generator-particle pseudorapidity propagated to the calorimeter";
     if (name == "mc_calophi")
-      return "Generator pion azimuth propagated to the calorimeter [rad]";
+      return "Generator-particle azimuth propagated to the calorimeter [rad]";
     if (name == "mc_iso04")
       return "Generator jet pt divided by rounded pion pt, minus one";
     if (name.find("_pt02") != std::string::npos)
@@ -226,6 +229,7 @@ private:
   edm::EDGetTokenT<std::vector<reco::GenJet>> genJets_;
   edm::EDGetTokenT<std::vector<reco::GenParticle>> genParticles_;
   std::string name_;
+  std::vector<int> particlePdgIds_;
   std::vector<MultiCollection> collections_;
 };
 DEFINE_FWK_MODULE(PionCalibrationResponseTableProducer);

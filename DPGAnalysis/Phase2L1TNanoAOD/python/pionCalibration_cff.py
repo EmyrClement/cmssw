@@ -1,45 +1,94 @@
-"""Optional pion calibration tables for a configured L1 emulation workflow."""
+"""Optional single-particle calibration tables for an L1 emulation workflow."""
 
 import FWCore.ParameterSet.Config as cms
 from PhysicsTools.NanoAOD.common_cff import Var
 
-# Decoded barrel clusters before the hadronic response correction.
-rawBarrelCaloTable = cms.EDProducer(
-    "SimpleCandidateFlatTableProducer",
-    src = cms.InputTag("l1tLayer1BarrelRaw", "DecodedHadClusters"),
-    cut = cms.string(""),
-    name = cms.string("RawBarrelCalo"),
-    doc = cms.string("Decoded barrel hadronic clusters with hadronic correction disabled"),
-    singleton = cms.bool(False),
-    extension = cms.bool(False),
-    variables = cms.PSet(
-        pt = Var("pt", float, doc = "Decoded transverse momentum [GeV]", precision = -1),
-        eta = Var("eta", float, doc = "Global pseudorapidity", precision = -1),
-        phi = Var("phi", float, doc = "Global azimuth [rad]", precision = -1),
-    ),
+
+def _decoded_calo_tables(src, name, doc):
+    """Return a familiar candidate table and its decoded-hardware extension."""
+    table = cms.EDProducer(
+        "SimpleCandidateFlatTableProducer",
+        src = src,
+        cut = cms.string(""),
+        name = cms.string(name),
+        doc = cms.string(doc),
+        singleton = cms.bool(False),
+        extension = cms.bool(False),
+        variables = cms.PSet(
+            pt = Var("pt", float, doc = "Decoded transverse momentum [GeV]", precision = -1),
+            eta = Var("eta", float, doc = "Global pseudorapidity", precision = -1),
+            phi = Var("phi", float, doc = "Global azimuth [rad]", precision = -1),
+        ),
+    )
+    extension = cms.EDProducer(
+        "L1PFDecodedCaloTableProducer",
+        src = src,
+        name = cms.string(name),
+        cut = cms.string(""),
+    )
+    return table, extension
+
+
+# Barrel decoded hadronic clusters before and after the response correction.
+rawBarrelCaloTable, rawBarrelCaloExtTable = _decoded_calo_tables(
+    cms.InputTag("l1tLayer1BarrelRaw", "DecodedHadClusters"),
+    "RawBarrelCalo",
+    "Decoded barrel hadronic clusters with hadronic correction disabled",
+)
+barrelCaloTable, barrelCaloExtTable = _decoded_calo_tables(
+    cms.InputTag("l1tLayer1Barrel", "DecodedHadClusters"),
+    "BarrelCalo",
+    "Decoded barrel hadronic clusters with configured correction",
 )
 
-# Reuse the decoded calorimeter extension for hardware fields, including EM pt.
-# The encoded EM pt must not be replaced by a value inferred from H/E.
-rawBarrelCaloExtTable = cms.EDProducer(
-    "L1PFDecodedCaloTableProducer",
-    src = rawBarrelCaloTable.src,
-    name = rawBarrelCaloTable.name,
-    cut = cms.string(""),
+# HGCal decoded clusters in the tracker and no-tracker regions. The raw Layer-1
+# clones have the common HGCal response corrector disabled. Hadronic and EM
+# outputs are both retained because their cone-sum ratio defines the fit's EM
+# fraction.
+rawHGCalTable, rawHGCalExtTable = _decoded_calo_tables(
+    cms.InputTag("l1tLayer1HGCalRaw", "DecodedHadClusters"),
+    "RawHGCal",
+    "Decoded HGCal hadronic clusters with correction disabled",
+)
+rawHGCalEMTable, rawHGCalEMExtTable = _decoded_calo_tables(
+    cms.InputTag("l1tLayer1HGCalRaw", "DecodedEmClusters"),
+    "RawHGCalEM",
+    "Decoded HGCal electromagnetic clusters with correction disabled",
+)
+rawHGCalNoTKTable, rawHGCalNoTKExtTable = _decoded_calo_tables(
+    cms.InputTag("l1tLayer1HGCalNoTKRaw", "DecodedHadClusters"),
+    "RawHGCalNoTK",
+    "Decoded no-track HGCal hadronic clusters with correction disabled",
+)
+rawHGCalNoTKEMTable, rawHGCalNoTKEMExtTable = _decoded_calo_tables(
+    cms.InputTag("l1tLayer1HGCalNoTKRaw", "DecodedEmClusters"),
+    "RawHGCalNoTKEM",
+    "Decoded no-track HGCal electromagnetic clusters with correction disabled",
+)
+hgcalTable, hgcalExtTable = _decoded_calo_tables(
+    cms.InputTag("l1tLayer1HGCal", "DecodedHadClusters"),
+    "HGCal",
+    "Decoded HGCal hadronic clusters with configured correction",
+)
+hgcalEMTable, hgcalEMExtTable = _decoded_calo_tables(
+    cms.InputTag("l1tLayer1HGCal", "DecodedEmClusters"),
+    "HGCalEM",
+    "Decoded HGCal electromagnetic clusters with configured correction",
+)
+hgcalNoTKTable, hgcalNoTKExtTable = _decoded_calo_tables(
+    cms.InputTag("l1tLayer1HGCalNoTK", "DecodedHadClusters"),
+    "HGCalNoTK",
+    "Decoded no-track HGCal hadronic clusters with configured correction",
+)
+hgcalNoTKEMTable, hgcalNoTKEMExtTable = _decoded_calo_tables(
+    cms.InputTag("l1tLayer1HGCalNoTK", "DecodedEmClusters"),
+    "HGCalNoTKEM",
+    "Decoded no-track HGCal electromagnetic clusters with configured correction",
 )
 
-# The same decoded objects with the configured hadronic response correction.
-barrelCaloTable = rawBarrelCaloTable.clone(
-    src = cms.InputTag("l1tLayer1Barrel", "DecodedHadClusters"),
-    name = "BarrelCalo",
-    doc = "Decoded barrel hadronic clusters with configured correction",
-)
-barrelCaloExtTable = rawBarrelCaloExtTable.clone(
-    src = barrelCaloTable.src,
-    name = barrelCaloTable.name,
-)
-
-# Generator particles before the response table's gen-jet matching.
+# Generator particles before the response table's gen-jet matching. This table
+# remains pion-specific for compatibility; the Response table also accepts the
+# mixed particle IDs required by the HGCal fit.
 calibGenPiTable = cms.EDProducer(
     "SimpleGenParticleFlatTableProducer",
     src = cms.InputTag("genParticles"),
@@ -61,19 +110,33 @@ calibGenPiTable = cms.EDProducer(
     ),
 )
 
-# Matching, propagation and cone sums require several collections, rather than
-# individual-object expressions. All sources intentionally resolve the latest
-# matching process. All response columns share the matched pion rows.
-# Collection names containing "Calo", "Ecal" or "Hcal" use propagated directions,
-# following the original FastPUPPI response calculation.
+# Matching, propagation and cone sums require event-wide access to several
+# collections. All sources intentionally resolve the latest matching process.
+# The HGCal names preserve the original FastPUPPI convention, which evaluates
+# those cones around the generator direction at the vertex.
 calibResponseTable = cms.EDProducer(
     "PionCalibrationResponseTableProducer",
     name = cms.string("Response"),
     genJets = cms.InputTag("ak4GenJetsNoNu"),
     genParticles = cms.InputTag("genParticles"),
+    particlePdgIds = cms.vint32(11, 22, 111, 130, 211),
     objects = cms.PSet(
-        L1RawBarrelCalo = cms.VInputTag(cms.InputTag("l1tLayer1BarrelRaw", "DecodedHadClusters")),
+        L1RawBarrelCalo = cms.VInputTag(
+            cms.InputTag("l1tLayer1BarrelRaw", "DecodedHadClusters"),
+        ),
         L1Calo = cms.VInputTag(cms.InputTag("l1tLayer1", "Calo")),
+        L1RawHGCal = cms.VInputTag(
+            cms.InputTag("l1tLayer1HGCalRaw", "DecodedHadClusters"),
+            cms.InputTag("l1tLayer1HGCalNoTKRaw", "DecodedHadClusters"),
+        ),
+        L1RawHGCalEM = cms.VInputTag(
+            cms.InputTag("l1tLayer1HGCalRaw", "DecodedEmClusters"),
+            cms.InputTag("l1tLayer1HGCalNoTKRaw", "DecodedEmClusters"),
+        ),
+        L1HGCal = cms.VInputTag(
+            cms.InputTag("l1tLayer1HGCal", "DecodedHadClusters"),
+            cms.InputTag("l1tLayer1HGCalNoTK", "DecodedHadClusters"),
+        ),
     ),
 )
 
@@ -82,6 +145,22 @@ pionCalibrationTask = cms.Task(
     rawBarrelCaloExtTable,
     barrelCaloTable,
     barrelCaloExtTable,
+    rawHGCalTable,
+    rawHGCalExtTable,
+    rawHGCalEMTable,
+    rawHGCalEMExtTable,
+    rawHGCalNoTKTable,
+    rawHGCalNoTKExtTable,
+    rawHGCalNoTKEMTable,
+    rawHGCalNoTKEMExtTable,
+    hgcalTable,
+    hgcalExtTable,
+    hgcalEMTable,
+    hgcalEMExtTable,
+    hgcalNoTKTable,
+    hgcalNoTKExtTable,
+    hgcalNoTKEMTable,
+    hgcalNoTKEMExtTable,
     calibGenPiTable,
     calibResponseTable,
 )

@@ -87,7 +87,10 @@ L1_pSingleTkMuon22_final # seed name and final for post prescale value
 ## Optional calibration tables
 
 `pionCalibration_cff.py` defines an opt-in task with raw/corrected decoded barrel
-calorimeter objects, prompt pion truth, and matched pion response quantities.
+and HGCal objects, a prompt-pion diagnostic table, and matched calibration-
+particle response quantities. The configured particle IDs are electron, photon, neutral and
+charged pion, and K-long. A charged-pion fitter can select its subset through
+the stored `Response_mc_id` column.
 It does not change the standard menu task. For a cmsDriver workflow containing
 `NANO:@Phase2L1DPGwithGen`, append this function to `--customise`:
 
@@ -95,10 +98,11 @@ It does not change the standard menu task. For a cmsDriver workflow containing
 DPGAnalysis/Phase2L1TNanoAOD/customisePionCalibration.customisePionCalibrationNano
 ```
 
-The customisation clones `l1tLayer1Barrel` with its hadronic correction disabled,
-adds the clone and calibration tables to `nanoAOD_step`, and keeps their tables
-through `NANOAODoutput`. InputTags intentionally omit the process name and hence
-select the latest matching products, normally from `L1TReRun` in a rerun job.
+The customisation clones `l1tLayer1Barrel`, `l1tLayer1HGCal`, and
+`l1tLayer1HGCalNoTK` with their hadronic corrections disabled, adds the clones
+and calibration tables to `nanoAOD_step`, and keeps their tables through
+`NANOAODoutput`. InputTags intentionally omit the process name and hence select
+the latest matching products, normally from `L1TReRun` in a rerun job.
 The calibration fitter needs the `Response` table; the standard TP tables are an
 independent optional customisation.
 
@@ -113,9 +117,17 @@ process = add_pion_calibration_tables(process, path="p", output="outnano")
 `L1PFDecodedCaloTableProducer` extends a generic object table with decoded
 hardware quantities. It was moved from FastPUPPI, retaining its plugin name and
 columns. Use a FastPUPPI revision with the old registration removed when building
-both packages together. `PionCalibrationResponseTableProducer` implements the
-multi-collection matching, propagation and cone calculations needed by the
-response fitter. Neither producer includes FastPUPPI headers.
+both packages together. `PionCalibrationResponseTableProducer` implements the multi-collection
+matching, propagation and cone calculations needed by the response fitter. The historical
+plugin name is retained for configuration compatibility. Neither producer
+includes FastPUPPI headers.
+
+The HGCal calibration columns combine the tracked and no-track regions for each
+raw or corrected response quantity. The object tables keep those regions and
+their hadronic/EM collections separate. The HGCal fit uses
+`Response_L1RawHGCalEM_pt02 / Response_L1RawHGCal_pt02` for its cone EM fraction
+and `Response_L1HGCal_pt02` for corrected closure. The production example accepts
+`hgcalCorrectionFile` and applies it to both standard HGCal regions.
 
 Keep reusable producers in `plugins/`, workflow-specific opt-in tasks in named
 Python fragments, and example jobs in `test/`. Prefer generic Simple tables with

@@ -1,4 +1,4 @@
-"""cmsDriver customisation for the optional pion calibration Nano tables."""
+"""cmsDriver customisation for the optional single-particle calibration Nano."""
 
 import FWCore.ParameterSet.Config as cms
 
@@ -6,21 +6,34 @@ from DPGAnalysis.Phase2L1TNanoAOD.pionCalibration_cff import add_pion_calibratio
 
 
 def customisePionCalibrationNano(process):
-    """Add raw/corrected barrel response tables to a cmsDriver Nano workflow.
+    """Add raw and corrected calorimeter response tables to a Nano workflow.
 
     InputTags intentionally have no process name, so they resolve products from
     the current process (normally L1TReRun) before falling back to the input.
     """
-    for required in ("l1tLayer1Barrel", "nanoAOD_step", "NANOAODoutput"):
+    required_modules = (
+        "l1tLayer1Barrel",
+        "l1tLayer1HGCal",
+        "l1tLayer1HGCalNoTK",
+        "nanoAOD_step",
+        "NANOAODoutput",
+    )
+    for required in required_modules:
         if not hasattr(process, required):
             raise ValueError(
                 "customisePionCalibrationNano requires process." + required
             )
-    if hasattr(process, "l1tLayer1BarrelRaw"):
-        raise ValueError(
-            "customisePionCalibrationNano will not replace an existing "
-            "process.l1tLayer1BarrelRaw"
-        )
+
+    raw_modules = (
+        "l1tLayer1BarrelRaw",
+        "l1tLayer1HGCalRaw",
+        "l1tLayer1HGCalNoTKRaw",
+    )
+    for module in raw_modules:
+        if hasattr(process, module):
+            raise ValueError(
+                "customisePionCalibrationNano will not replace process." + module
+            )
 
     process = add_pion_calibration_tables(
         process,
@@ -34,5 +47,23 @@ def customisePionCalibrationNano(process):
             )
         )
     )
-    process.pionCalibrationTask.add(process.l1tLayer1BarrelRaw)
+    process.l1tLayer1HGCalRaw = process.l1tLayer1HGCal.clone(
+        hgcalInputConversionParameters=(
+            process.l1tLayer1HGCal.hgcalInputConversionParameters.clone(
+                corrector=cms.string("")
+            )
+        )
+    )
+    process.l1tLayer1HGCalNoTKRaw = process.l1tLayer1HGCalNoTK.clone(
+        hgcalInputConversionParameters=(
+            process.l1tLayer1HGCalNoTK.hgcalInputConversionParameters.clone(
+                corrector=cms.string("")
+            )
+        )
+    )
+    process.pionCalibrationTask.add(
+        process.l1tLayer1BarrelRaw,
+        process.l1tLayer1HGCalRaw,
+        process.l1tLayer1HGCalNoTKRaw,
+    )
     return process

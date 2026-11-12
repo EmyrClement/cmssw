@@ -22,7 +22,20 @@ process = customisePionCalibrationNano(process)
 
 assert process.l1tLayer1BarrelRaw.gctHadInputConversionParameters.gctHadCorrector.value() == ""
 assert process.l1tLayer1Barrel.gctHadInputConversionParameters.gctHadCorrector.value() != ""
-assert "l1tLayer1BarrelRaw" in process.pionCalibrationTask.moduleNames()
+assert process.l1tLayer1HGCalRaw.hgcalInputConversionParameters.corrector.value() == ""
+assert process.l1tLayer1HGCalNoTKRaw.hgcalInputConversionParameters.corrector.value() == ""
+assert process.l1tLayer1HGCal.hgcalInputConversionParameters.corrector.value() != ""
+assert process.l1tLayer1HGCalNoTK.hgcalInputConversionParameters.corrector.value() != ""
+for module in (
+    "l1tLayer1BarrelRaw",
+    "l1tLayer1HGCalRaw",
+    "l1tLayer1HGCalNoTKRaw",
+    "rawHGCalTable",
+    "rawHGCalEMTable",
+    "hgcalTable",
+):
+    assert module in process.pionCalibrationTask.moduleNames()
+assert set(process.calibResponseTable.particlePdgIds) == {11, 22, 111, 130, 211}
 assert process.rawBarrelCaloTable.src.getProcessName() == ""
 assert process.barrelCaloTable.src.getProcessName() == ""
 for tags in process.calibResponseTable.objects.parameters_().values():
