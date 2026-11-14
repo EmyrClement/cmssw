@@ -153,6 +153,12 @@ namespace l1ct {
 
     static edm::ParameterSetDescription getParameterSetDescription();
 
+    struct Diagnostics {
+      // Raw fixed-point sums and associations, indexed by the regional PF input slot.
+      std::vector<unsigned int> neutralSums;
+      std::vector<int> chargedAssociations;
+    };
+
     // charged
     void linpuppi_chs_ref(const PFRegionEmu &region,
                           const PVObjEmu &pv,
@@ -182,7 +188,8 @@ namespace l1ct {
                       const std::vector<PFNeutralObjEmu> &pfallne /*[nIn]*/,
                       std::vector<PuppiObjEmu> &outallne_nocut /*[nIn]*/,
                       std::vector<PuppiObjEmu> &outallne /*[nIn]*/,
-                      std::vector<PuppiObjEmu> &outselne /*[nOut]*/) const;
+                      std::vector<PuppiObjEmu> &outselne /*[nOut]*/,
+                      std::vector<unsigned int> *neutralSums = nullptr) const;
     void linpuppi_ref(const PFRegionEmu &region,
                       const std::vector<TkObjEmu> &track /*[nTrack]*/,
                       const std::vector<PVObjEmu> &pv /*[nVtx]*/,
@@ -215,7 +222,10 @@ namespace l1ct {
                                 const std::vector<PVObjEmu> &pv /*[nVtx]*/,
                                 std::vector<AssociationObjEmu> &association) const;
     // for CMSSW
-    void run(const PFInputRegion &in, const std::vector<l1ct::PVObjEmu> &pvs, OutputRegion &out) const;
+    void run(const PFInputRegion &in,
+             const std::vector<l1ct::PVObjEmu> &pvs,
+             OutputRegion &out,
+             Diagnostics *diagnostics = nullptr) const;
 
     void setDebug(bool debug = true) { debug_ = debug; }
 

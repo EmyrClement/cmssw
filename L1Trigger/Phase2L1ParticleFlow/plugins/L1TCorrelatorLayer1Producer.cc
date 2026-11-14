@@ -15,6 +15,7 @@
 #include "FWCore/ParameterSet/interface/allowedValues.h"
 
 #include "DataFormats/Common/interface/RefToPtr.h"
+#include "DataFormats/Common/interface/ValueMap.h"
 #include "DataFormats/L1TParticleFlow/interface/PFCandidate.h"
 #include "DataFormats/L1TParticleFlow/interface/PFCluster.h"
 #include "DataFormats/L1Trigger/interface/Vertex.h"
@@ -73,6 +74,18 @@ private:
   edm::EDGetTokenT<std::vector<l1t::Vertex>> extTkVtx_;
   edm::EDGetTokenT<std::vector<l1t::VertexWord>> tkVtxEmu_;
   int nVtx_;
+  const bool producePuppiDiagnostics_;
+
+  // Optional columns aligned with the exported, unweighted PF collection.
+  struct PuppiScanValues {
+    std::vector<int> sumRaw, region, slot, association;
+    void append(int sum, int regionIndex, int inputSlot, int associated) {
+      sumRaw.push_back(sum);
+      region.push_back(regionIndex);
+      slot.push_back(inputSlot);
+      association.push_back(associated);
+    }
+  };
 
   edm::EDGetTokenT<l1t::SAMuonCollection> muCands_;  // standalone muons
 
@@ -170,7 +183,9 @@ private:
   std::unique_ptr<l1t::PFCandidateCollection> fetchHadCalo() const;
   std::unique_ptr<l1t::PFCandidateCollection> fetchEmCalo() const;
   std::unique_ptr<l1t::PFCandidateCollection> fetchTracks() const;
-  std::unique_ptr<l1t::PFCandidateCollection> fetchPF() const;
+  std::unique_ptr<l1t::PFCandidateCollection> fetchPF(
+      const std::vector<l1ct::LinPuppiEmulator::Diagnostics> *diagnostics = nullptr,
+      PuppiScanValues *values = nullptr) const;
   std::unique_ptr<l1t::PFClusterCollection> fetchDecodedHadCalo() const;
   std::unique_ptr<l1t::PFClusterCollection> fetchDecodedEmCalo() const;
   std::unique_ptr<l1t::PFTrackCollection> fetchDecodedTracks() const;
@@ -226,6 +241,7 @@ L1TCorrelatorLayer1Producer::L1TCorrelatorLayer1Producer(const edm::ParameterSet
       tkCands_(hasTracks_ ? consumes<l1t::PFTrackCollection>(iConfig.getParameter<edm::InputTag>("tracks"))
                           : edm::EDGetTokenT<l1t::PFTrackCollection>()),
       trkPt_(iConfig.getParameter<double>("trkPtCut")),
+      producePuppiDiagnostics_(iConfig.getParameter<bool>("producePuppiDiagnostics")),
       muCands_(consumes<l1t::SAMuonCollection>(iConfig.getParameter<edm::InputTag>("muons"))),
       emPtCut_(iConfig.getParameter<double>("emPtCut")),
       hadPtCut_(iConfig.getParameter<double>("hadPtCut")),
@@ -240,6 +256,10 @@ L1TCorrelatorLayer1Producer::L1TCorrelatorLayer1Producer(const edm::ParameterSet
       debugPhi_(iConfig.getUntrackedParameter<double>("debugPhi")),
       debugR_(iConfig.getUntrackedParameter<double>("debugR")) {
   produces<l1t::PFCandidateCollection>("PF");
+  if (producePuppiDiagnostics_) {
+    for (const auto *instance : {"puppiSumRaw", "puppiRegion", "puppiSlot", "puppiAssociation"})
+      produces<edm::ValueMap<int>>(instance);
+  }
   produces<l1t::PFCandidateCollection>("Puppi");
   produces<l1t::PFCandidateRegionalOutput>("PuppiRegional");
 
@@ -419,6 +439,7 @@ void L1TCorrelatorLayer1Producer::fillDescriptions(edm::ConfigurationDescription
   desc.add<edm::InputTag>("hadClusters", edm::InputTag(""));
   desc.add<edm::InputTag>("vtxCollection", edm::InputTag("l1tVertexFinderEmulator", "L1VerticesEmulation"));
   desc.add<bool>("vtxCollectionEmulation", true);
+  desc.add<bool>("producePuppiDiagnostics", false);
   desc.add<double>("emPtCut", 0.0);
   desc.add<double>("hadPtCut", 0.0);
   desc.add<double>("trkPtCut", 0.0);
@@ -671,9 +692,13 @@ void L1TCorrelatorLayer1Producer::produce(edm::Event &iEvent, const edm::EventSe
     l1tkegalgo_->runIso(event_.pfinputs[ir], event_.pvs, event_.out[ir]);
   }
 
-  // Then run puppi (regionally)
+  // Then run puppi (regionally). Diagnostics observe the calculation without changing it.
+  std::vector<l1ct::LinPuppiEmulator::Diagnostics> puppiDiagnostics;
+  if (producePuppiDiagnostics_)
+    puppiDiagnostics.resize(event_.pfinputs.size());
   for (unsigned int ir = 0, nr = event_.pfinputs.size(); ir < nr; ++ir) {
-    l1pualgo_->run(event_.pfinputs[ir], event_.pvs, event_.out[ir]);
+    l1pualgo_->run(
+        event_.pfinputs[ir], event_.pvs, event_.out[ir], producePuppiDiagnostics_ ? &puppiDiagnostics[ir] : nullptr);
     //l1pualgo_->runNeutralsPU(l1region, z0, -1., puGlobals);
   }
 
@@ -690,8 +715,24 @@ void L1TCorrelatorLayer1Producer::produce(edm::Event &iEvent, const edm::EventSe
     l1tkegsorter_->runEle(event_.pfinputs, event_.out, board.region_index, board.egelectron);
   }
 
-  // save PF into the event
-  iEvent.put(fetchPF(), "PF");
+  // Save PF and optional diagnostic ValueMaps keyed to those exact PF rows.
+  PuppiScanValues scanValues;
+  const auto pfHandle = iEvent.put(
+      fetchPF(producePuppiDiagnostics_ ? &puppiDiagnostics : nullptr, producePuppiDiagnostics_ ? &scanValues : nullptr),
+      "PF");
+  if (producePuppiDiagnostics_) {
+    const std::pair<const char *, const std::vector<int> *> columns[] = {{"puppiSumRaw", &scanValues.sumRaw},
+                                                                         {"puppiRegion", &scanValues.region},
+                                                                         {"puppiSlot", &scanValues.slot},
+                                                                         {"puppiAssociation", &scanValues.association}};
+    for (const auto &column : columns) {
+      auto map = std::make_unique<edm::ValueMap<int>>();
+      edm::ValueMap<int>::Filler filler(*map);
+      filler.insert(pfHandle, column.second->begin(), column.second->end());
+      filler.fill();
+      iEvent.put(std::move(map), column.first);
+    }
+  }
 
   // and save puppi
   putPuppi(iEvent);
@@ -1380,11 +1421,14 @@ std::unique_ptr<l1t::PFTrackCollection> L1TCorrelatorLayer1Producer::fetchDecode
   return ret;
 }
 
-std::unique_ptr<l1t::PFCandidateCollection> L1TCorrelatorLayer1Producer::fetchPF() const {
+std::unique_ptr<l1t::PFCandidateCollection> L1TCorrelatorLayer1Producer::fetchPF(
+    const std::vector<l1ct::LinPuppiEmulator::Diagnostics> *diagnostics, PuppiScanValues *values) const {
   auto ret = std::make_unique<l1t::PFCandidateCollection>();
+  const auto nTrack = config_.getParameter<edm::ParameterSet>("puAlgoParameters").getParameter<uint32_t>("nTrack");
   for (unsigned int ir = 0, nr = event_.pfinputs.size(); ir < nr; ++ir) {
     const auto &reg = event_.pfinputs[ir].region;
-    for (const auto &p : event_.out[ir].pfcharged) {
+    for (unsigned int slot = 0; slot < event_.out[ir].pfcharged.size(); ++slot) {
+      const auto &p = event_.out[ir].pfcharged[slot];
       if (p.hwPt == 0 || !reg.isFiducial(p))
         continue;
       reco::Particle::PolarLorentzVector p4(
@@ -1410,8 +1454,13 @@ std::unique_ptr<l1t::PFCandidateCollection> L1TCorrelatorLayer1Producer::fetchPF
       ret->back().setEncodedPuppi64(encodedPF.pack().to_uint64());
 
       setRefs_(ret->back(), p);
+      if (values) {
+        const auto &associations = (*diagnostics)[ir].chargedAssociations;
+        values->append(-1, ir, slot, slot < associations.size() ? associations[slot] : -1);
+      }
     }
-    for (const auto &p : event_.out[ir].pfneutral) {
+    for (unsigned int slot = 0; slot < event_.out[ir].pfneutral.size(); ++slot) {
+      const auto &p = event_.out[ir].pfneutral[slot];
       if (p.hwPt == 0 || !reg.isFiducial(p))
         continue;
       reco::Particle::PolarLorentzVector p4(p.floatPt(), reg.floatGlbEtaOf(p), reg.floatGlbPhiOf(p), 0.13f);
@@ -1428,6 +1477,10 @@ std::unique_ptr<l1t::PFCandidateCollection> L1TCorrelatorLayer1Producer::fetchPF
       ret->back().setEncodedPuppi64(encodedPF.pack().to_uint64());
 
       setRefs_(ret->back(), p);
+      if (values) {
+        const auto &sums = (*diagnostics)[ir].neutralSums;
+        values->append(slot < sums.size() ? int(sums[slot]) : -1, ir, nTrack + slot, -1);
+      }
     }
   }
   return ret;

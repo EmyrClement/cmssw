@@ -470,10 +470,14 @@ void l1ct::LinPuppiEmulator::linpuppi_ref(const PFRegionEmu &region,
                                           const std::vector<PFNeutralObjEmu> &pfallne /*[nIn]*/,
                                           std::vector<PuppiObjEmu> &outallne_nocut /*[nIn]*/,
                                           std::vector<PuppiObjEmu> &outallne /*[nIn]*/,
-                                          std::vector<PuppiObjEmu> &outselne /*[nOut]*/) const {
+                                          std::vector<PuppiObjEmu> &outselne /*[nOut]*/,
+                                          std::vector<unsigned int> *neutralSums) const {
   const unsigned int nIn = std::min<unsigned>(nIn_, pfallne.size());
   const unsigned int nTrack = std::min<unsigned int>(nTrack_, track.size());
   const unsigned int PTMAX2 = (iptMax_ * iptMax_);
+
+  if (neutralSums)
+    neutralSums->assign(nIn, 0);
 
   outallne_nocut.resize(nIn);
   outallne.resize(nIn);
@@ -510,6 +514,8 @@ void l1ct::LinPuppiEmulator::linpuppi_ref(const PFRegionEmu &region,
 
     unsigned int ieta = find_ieta(region, pfallne[in].hwEta);
     bool isEM = (pfallne[in].hwId.isPhoton());
+    if (neutralSums)
+      (*neutralSums)[in] = sum.bits_to_uint64();
     std::pair<pt_t, puppiWgt_t> ptAndW = sum2puppiPt_ref(sum, pfallne[in].hwPt, ieta, isEM, in);
     if (!fakePuppi_) {
       outallne_nocut[in].fill(region, pfallne[in], ptAndW.first, ptAndW.second);
@@ -650,7 +656,12 @@ void l1ct::LinPuppiEmulator::linpuppi_flt(const PFRegionEmu &region,
 
 void l1ct::LinPuppiEmulator::run(const PFInputRegion &in,
                                  const std::vector<l1ct::PVObjEmu> &pvs,
-                                 OutputRegion &out) const {
+                                 OutputRegion &out,
+                                 Diagnostics *diagnostics) const {
+  if (diagnostics) {
+    diagnostics->neutralSums.clear();
+    diagnostics->chargedAssociations.clear();
+  }
   if (debug_) {
     dbgPrintf("\nWill run LinPuppi in region eta %+5.2f, phi %+5.2f, pv0 int Z %+d\n",
               in.region.floatEtaCenter(),
@@ -661,8 +672,22 @@ void l1ct::LinPuppiEmulator::run(const PFInputRegion &in,
     std::vector<PuppiObjEmu> outallch, outallne_nocut, outallne, outselne;
     std::vector<AssociationObjEmu> associations;
     linpuppi_associate_trk(in.region, in.track, pvs, associations);
+    if (diagnostics) {
+      const unsigned int nCharged = std::min<unsigned int>(nTrack_, out.pfcharged.size());
+      diagnostics->chargedAssociations.reserve(nCharged);
+      for (unsigned int i = 0; i < nCharged; ++i)
+        diagnostics->chargedAssociations.push_back(associations[i].hwAssociation.to_int());
+    }
     linpuppi_chs_ref(in.region, pvs, associations, out.pfcharged, outallch);
-    linpuppi_ref(in.region, in.track, pvs, associations, out.pfneutral, outallne_nocut, outallne, outselne);
+    linpuppi_ref(in.region,
+                 in.track,
+                 pvs,
+                 associations,
+                 out.pfneutral,
+                 outallne_nocut,
+                 outallne,
+                 outselne,
+                 diagnostics ? &diagnostics->neutralSums : nullptr);
     // ensure proper sizes of the vectors, to get accurate sorting wrt firmware
     const std::vector<PuppiObjEmu> &ne = (nOut_ == nIn_ ? outallne : outselne);
     unsigned int nch = outallch.size(), nne = ne.size(), i;

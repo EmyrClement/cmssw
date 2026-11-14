@@ -140,3 +140,64 @@ FastPUPPI emulation configuration; that example still needs FastPUPPI. The
 registered `testPionCalibrationTables` test only checks zero-event construction
 and does not import FastPUPPI. Event-level agreement is validated separately
 with the pion sample and original analyzer.
+
+
+## Optional offline PUPPI scan tables
+
+Append this opt-in customisation to the full menu cmsDriver command:
+
+```text
+DPGAnalysis/Phase2L1TNanoAOD/customisePuppiScan.customisePuppiScanNano
+```
+
+It attaches `puppiScanTask` to `nanoAOD_step`, keeps its tables through
+`NANOAODoutput`, and enables the barrel producer's `producePuppiDiagnostics`
+ValueMaps. The default menu table task and the emulation settings are unchanged.
+The supported prototype uses `LinearizedPuppi`, emulated VertexWords, one primary
+vertex, cut-based charged association, `fakePuppi=False` and `nOut == nIn`.
+Unsupported modes fail during configuration rather than silently producing an
+ambiguous offline contract. The generic table fragment may also be attached
+with `add_puppi_scan_tables(process, path="p", output="outnano")` after explicitly
+enabling compatible diagnostic products and setting the intended vertex source.
+
+| Table | Input | Meaning |
+| --- | --- | --- |
+| `PuppiScanPF` | `l1tLayer1Barrel:PF` | Fiducial unweighted PF, with no additional Nano cut |
+| `PuppiScanRef` | `l1tLayer1Barrel:Puppi` | Weighted barrel reference after PUPPI cuts and regional sorting |
+| `PuppiScanFinal` | `l1tLayer2Deregionizer:Puppi` | Full-detector reference after deregionization |
+| `PuppiScanVertex` | Actual barrel `vtxCollection` tag | Every input VertexWord in original order |
+
+All float columns retain full float precision (`precision=-1`). PF `eta/phi`
+are the global vertex direction for charged candidates; `caloEta/caloPhi`
+are their global calorimeter coordinates. PF `hwEta/hwPhi` are region-local
+calorimeter codes. PUPPI `hwEta/hwPhi` are global output codes instead. The PUPPI
+products do not fill `caloEta/caloPhi`: those columns preserve their constructor
+zeros and are **not** measured directions. Neutrals have zero `z0/hwZ0`;
+`hwPuppiWeight` preserves the stored integer accessor, which is not the raw
+fractional weight bit pattern; use `puppiWeight` for weight comparisons. The `pt`
+column is already weighted in the reference tables, so do not weight it again.
+The floating `puppiWeight` retains the 1/256 grid and the pT scale is 0.25 GeV/count.
+
+The PF table also reads four producer-owned integer ValueMaps through generic
+`ExtVar` columns: `sumRaw` (the actual fixed-point neutral alpha sum), `region`,
+`slot` and `association`. `sumRaw=-1` marks charged or ineligible candidates;
+`association=-1` marks neutral or ineligible charged candidates. Neutral input slots start at configured
+`nTrack`. These maps preserve the inputs needed to scan the weighting parameters
+without reconstructing overlapping regional track lists from fiducial PF rows.
+They do not authorize changing alpha geometry, track truncation or association
+settings while treating the stored sums as unchanged. The reference tables do
+not consume these PF-keyed maps.
+
+Vertex `hwZ0` retains the unsigned 15-bit VertexWord pattern (signed two's
+complement, 1/512 cm/count), distinct from the signed PF code (0.05 cm/count).
+To recover the primary used by Layer 1, iterate in stored order starting with
+`ptsum=0`, replacing the chosen vertex whenever `ptsum == 0` or `sumPt > ptsum`.
+Positive-sumPt ties retain the first row; all-zero collections select the last.
+An empty collection yields z0=0. Then apply the Layer-1 0.05 cm quantisation
+with half-way rounding away from zero. No validity or truth-proximity cut is
+applied by that selection. Save the expanded configuration and source identity
+alongside every Nano; row indices are event-local, not persistent identities.
+
+The registered `testPuppiScanTables` and `testPuppiScanCustomisation` tests cover
+zero-event producer construction, configuration guards and table attachment.
+They do not establish event-level closure or agreement with a standalone scan.
