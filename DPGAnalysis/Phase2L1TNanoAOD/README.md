@@ -135,6 +135,21 @@ explicit Python variables whenever possible. A separate package is warranted
 when workflows develop distinct dependencies or ownership, rather than simply
 because the number of table definitions increases.
 
+For PUPPI jet response calibration, append
+
+```text
+DPGAnalysis/Phase2L1TNanoAOD/customisePuppiJetCalibration.customisePuppiJetCalibrationNano
+```
+
+to the cmsDriver `--customise` list. This adds `L1puppiJetSC4Raw`, a generic
+PFJet table sourced from the uncorrected `l1tSC4PFL1PuppiEmulator` collection.
+The standard `L1puppiJetSC4` table is sourced from
+`l1tSC4PFL1PuppiCorrectedEmulator`; the two tables therefore expose the
+pre-correction jets and the release's standard corrected jets in one Nano. A
+new correction still requires applying the derived payload offline or in a
+second CMSSW run. The uncorrected table is opt-in because it is needed for
+calibration studies, not routine menu analysis.
+
 `test/pionCalibrationNano_cfg.py` is a hackathon production example using the
 FastPUPPI emulation configuration; that example still needs FastPUPPI. The
 registered `testPionCalibrationTables` test only checks zero-event construction

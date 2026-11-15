@@ -1,2 +1,3 @@
 <test name="testPionCalibrationTables" command="cmsRun ${LOCALTOP}/src/DPGAnalysis/Phase2L1TNanoAOD/test/testPionCalibrationTables_cfg.py"/>
 <test name="testPionCalibrationCustomisation" command="cmsRun ${LOCALTOP}/src/DPGAnalysis/Phase2L1TNanoAOD/test/testPionCalibrationCustomisation_cfg.py"/>
+<test name="testPuppiJetCalibrationCustomisation" command="cmsRun ${LOCALTOP}/src/DPGAnalysis/Phase2L1TNanoAOD/test/testPuppiJetCalibrationCustomisation_cfg.py"/>
