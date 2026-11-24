@@ -83,3 +83,9 @@ The GT emulator decisions are stored like this now:
 ```
 L1_pSingleTkMuon22_final # seed name and final for post prescale value
 ```
+
+## Trigger-primitive input tables
+
+See [test/README_TPNano.md](test/README_TPNano.md) for the standard TP table
+fragment, menu attachment example, and the matched legacy/Phase-2 ECAL
+TP and RCT/GCT examples.

@@ -68,6 +68,10 @@ private:
   void produce(edm::Event&, const edm::EventSetup&) override;
 
   edm::EDGetTokenT<EcalEBTrigPrimDigiCollection> ecalTPEBToken_;
+  edm::EDGetTokenT<EcalEBPhase2TrigPrimDigiCollection> phase2TPEBToken_;
+  bool usePhase2TPs_;
+  unsigned int phase2Sample_;
+  double phase2EtLSB_;
   edm::EDGetTokenT<edm::SortedCollection<HcalTriggerPrimitiveDigi>> hcalTPToken_;
   edm::ESGetToken<CaloTPGTranscoder, CaloTPGRecord> decoderTag_;
 
@@ -86,6 +90,10 @@ private:
 
 Phase2L1CaloEGammaEmulator::Phase2L1CaloEGammaEmulator(const edm::ParameterSet& iConfig)
     : ecalTPEBToken_(consumes<EcalEBTrigPrimDigiCollection>(iConfig.getParameter<edm::InputTag>("ecalTPEB"))),
+      phase2TPEBToken_(consumes<EcalEBPhase2TrigPrimDigiCollection>(iConfig.getParameter<edm::InputTag>("ecalTPEB"))),
+      usePhase2TPs_(iConfig.getParameter<bool>("usePhase2TPs")),
+      phase2Sample_(iConfig.getParameter<unsigned int>("phase2Sample")),
+      phase2EtLSB_(iConfig.getParameter<double>("phase2EtLSB")),
       hcalTPToken_(
           consumes<edm::SortedCollection<HcalTriggerPrimitiveDigi>>(iConfig.getParameter<edm::InputTag>("hcalTP"))),
       decoderTag_(esConsumes<CaloTPGTranscoder, CaloTPGRecord>(edm::ESInputTag("", ""))),
@@ -126,32 +134,34 @@ void Phase2L1CaloEGammaEmulator::produce(edm::Event& iEvent, const edm::EventSet
   //***************************************************//
   // Get the ECAL hits
   //***************************************************//
-  edm::Handle<EcalEBTrigPrimDigiCollection> pcalohits;
-  iEvent.getByToken(ecalTPEBToken_, pcalohits);
-
   std::vector<p2eg::SimpleCaloHit> ecalhits;
-
-  for (const auto& hit : *pcalohits.product()) {
-    if (hit.encodedEt() > 0)  // hit.encodedEt() returns an int corresponding to 2x the crystal Et
-    {
-      // Et is 10 bit, by keeping the ADC saturation Et at 120 GeV it means that you have to multiply by 0.125 (input LSB)
-      float et = hit.encodedEt() * 0.125;
-      if (et < p2eg::cut_500_MeV) {
-        continue;  // Reject hits with < 500 MeV ET
+  auto addHit = [&](const EBDetId& id, int code, double lsb) {
+    const float et = code * lsb;
+    if (code <= 0 || et < p2eg::cut_500_MeV) {
+      return;
+    }
+    auto cell = ebGeometry->getGeometry(id);
+    p2eg::SimpleCaloHit ehit;
+    ehit.setId(id);
+    ehit.setPosition(GlobalVector(cell->getPosition().x(), cell->getPosition().y(), cell->getPosition().z()));
+    ehit.setEnergy(et);
+    // Preserve the firmware's 0.5 GeV internal scale, truncating positive values.
+    // Legacy code/4 is unchanged; do not pack Phase-2 energy into a legacy 10-bit digi.
+    ehit.setEt_uint(static_cast<unsigned int>(code * lsb / p2eg::ECAL_LSB));
+    ehit.setPt();
+    ecalhits.push_back(ehit);
+  };
+  if (usePhase2TPs_) {
+    for (const auto& hit : iEvent.get(phase2TPEBToken_)) {
+      if (phase2Sample_ >= static_cast<unsigned int>(hit.size())) {
+        throw cms::Exception("InvalidEcalTPSample") << "Requested Phase-2 sample " << phase2Sample_ << ", but crystal "
+                                                    << hit.id().rawId() << " stores " << hit.size() << " samples";
       }
-
-      // Get cell coordinates and info
-      auto cell = ebGeometry->getGeometry(hit.id());
-
-      p2eg::SimpleCaloHit ehit;
-      ehit.setId(hit.id());
-      ehit.setPosition(GlobalVector(cell->getPosition().x(), cell->getPosition().y(), cell->getPosition().z()));
-      ehit.setEnergy(et);
-      ehit.setEt_uint(
-          (ap_uint<10>)hit.encodedEt() >>
-          2);  // also save the uint Et, this is to convert between 0.125 (in MC production) and 0.5 (in firmware based code)
-      ehit.setPt();
-      ecalhits.push_back(ehit);
+      addHit(hit.id(), hit.sample(phase2Sample_).encodedEt(), phase2EtLSB_);
+    }
+  } else {
+    for (const auto& hit : iEvent.get(ecalTPEBToken_)) {
+      addHit(hit.id(), hit.encodedEt(), 0.125);
     }
   }
 
@@ -643,6 +653,9 @@ void Phase2L1CaloEGammaEmulator::produce(edm::Event& iEvent, const edm::EventSet
 void Phase2L1CaloEGammaEmulator::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
   // l1tPhase2L1CaloEGammaEmulator
   edm::ParameterSetDescription desc;
+  desc.add<bool>("usePhase2TPs", false);
+  desc.add<unsigned int>("phase2Sample", 0);
+  desc.add<double>("phase2EtLSB", 0.488);
   desc.add<edm::InputTag>("ecalTPEB", edm::InputTag("simEcalEBTriggerPrimitiveDigis"));
   desc.add<edm::InputTag>("hcalTP", edm::InputTag("simHcalTriggerPrimitiveDigis"));
   {

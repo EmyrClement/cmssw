@@ -1,3 +1,9 @@
+<use name="DataFormats/L1TCalorimeterPhase2"/>
+<use name="DataFormats/EcalDigi"/>
+<use name="DataFormats/HcalDigi"/>
+<use name="DataFormats/L1TrackTrigger"/>
+<use name="DataFormats/L1THGCal"/>
+<use name="PhysicsTools/NanoAOD"/>
 <use name="CondFormats/DataRecord"/>
 <use name="CondFormats/L1TObjects"/>
 <use name="CondFormats/RunInfo"/>
